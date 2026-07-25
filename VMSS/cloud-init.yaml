@@ -9,62 +9,50 @@ packages:
   - jq
 
 write_files:
+  - path: /usr/local/bin/setup-dashboard.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/bin/bash
+      set -eux
 
-##############################################
-# Generate Azure Config
-##############################################
+      WEBROOT=/var/www/html
 
-- path: /usr/local/bin/update-config.sh
-  permissions: "0755"
-  owner: root:root
-  content: |
-    #!/bin/bash
+      systemctl enable nginx
+      systemctl start nginx
 
-    META=$(curl -s -H Metadata:true \
+      # Remove default nginx page
+      rm -f ${WEBROOT}/index.nginx-debian.html
+
+      # Download dashboard files
+      curl -L https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/VMSS/index.html -o ${WEBROOT}/index.html
+      curl -L https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/VMSS/style.css -o ${WEBROOT}/style.css
+      curl -L https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/VMSS/script.js -o ${WEBROOT}/script.js
+
+      # Azure Metadata
+      META=$(curl -H Metadata:true -s \
       "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
 
-    HOSTNAME=$(echo "$META" | jq -r '.name')
-    REGION=$(echo "$META" | jq -r '.location')
+      HOSTNAME=$(echo "$META" | jq -r '.name')
+      REGION=$(echo "$META" | jq -r '.location')
 
-    cat >/var/www/html/config.js <<EOF
-    window.AZURE_CONFIG = {
-      hostname: "${HOSTNAME}",
-      region: "${REGION}",
-      bootEpoch: $(date +%s)
-    };
-    EOF
+      cat > ${WEBROOT}/config.js <<EOF
+      window.AZURE_CONFIG = {
+          hostname: "$HOSTNAME",
+          region: "$REGION",
+          bootEpoch: $(date +%s)
+      };
+      EOF
 
-##############################################
-# Systemd Service
-##############################################
+      chown -R www-data:www-data ${WEBROOT}
+      chmod -R 755 ${WEBROOT}
 
-- path: /etc/systemd/system/update-config.service
-  permissions: "0644"
-  owner: root:root
-  content: |
-    [Unit]
-    Description=Generate Azure Dashboard Config
-    After=network-online.target
-
-    [Service]
-    Type=oneshot
-    ExecStart=/usr/local/bin/update-config.sh
-
-    [Install]
-    WantedBy=multi-user.target
+      systemctl restart nginx
 
 runcmd:
+  - bash /usr/local/bin/setup-dashboard.sh
 
-  # Enable nginx
-  - systemctl enable nginx
-
-  # Generate config.js
-  - bash /usr/local/bin/update-config.sh
-
-  # Enable service
-  - systemctl daemon-reload
-  - systemctl enable update-config.service
-  - systemctl start update-config.service
-
-  # Restart nginx
-  - systemctl restart nginx
+final_message: |
+  ==========================================
+  Azure VMSS Dashboard Installed
+  ==========================================
