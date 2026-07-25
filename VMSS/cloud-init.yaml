@@ -1,0 +1,70 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - nginx
+  - curl
+  - jq
+
+write_files:
+
+##############################################
+# Generate Azure Config
+##############################################
+
+- path: /usr/local/bin/update-config.sh
+  permissions: "0755"
+  owner: root:root
+  content: |
+    #!/bin/bash
+
+    META=$(curl -s -H Metadata:true \
+      "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
+
+    HOSTNAME=$(echo "$META" | jq -r '.name')
+    REGION=$(echo "$META" | jq -r '.location')
+
+    cat >/var/www/html/config.js <<EOF
+    window.AZURE_CONFIG = {
+      hostname: "${HOSTNAME}",
+      region: "${REGION}",
+      bootEpoch: $(date +%s)
+    };
+    EOF
+
+##############################################
+# Systemd Service
+##############################################
+
+- path: /etc/systemd/system/update-config.service
+  permissions: "0644"
+  owner: root:root
+  content: |
+    [Unit]
+    Description=Generate Azure Dashboard Config
+    After=network-online.target
+
+    [Service]
+    Type=oneshot
+    ExecStart=/usr/local/bin/update-config.sh
+
+    [Install]
+    WantedBy=multi-user.target
+
+runcmd:
+
+  # Enable nginx
+  - systemctl enable nginx
+
+  # Generate config.js
+  - bash /usr/local/bin/update-config.sh
+
+  # Enable service
+  - systemctl daemon-reload
+  - systemctl enable update-config.service
+  - systemctl start update-config.service
+
+  # Restart nginx
+  - systemctl restart nginx
