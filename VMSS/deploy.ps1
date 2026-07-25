@@ -21,7 +21,7 @@ param(
     [string]$Location      = 'centralindia',
     [string]$Project       = 'vmssdemo',
     [string]$VmSku         = 'Standard_B1s',
-    [int]$InstanceCount    = 2,
+    [int]$InstanceCount    = 1,
     [string]$AdminUsername = 'azureuser'
 )
 
