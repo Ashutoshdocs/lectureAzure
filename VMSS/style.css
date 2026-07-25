@@ -1,0 +1,497 @@
+/*=========================================================
+  AZURE VMSS DASHBOARD — style.css
+  Aurora background · Glassmorphism · Neon glow · Particles
+=========================================================*/
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --azure: #0078d4;
+  --azureDark: #005a9e;
+  --cyan: #00c6ff;
+  --blue: #007fff;
+  --green: #00ff99;
+  --yellow: #ffd54f;
+  --orange: #ff9f43;
+  --red: #ff5a5a;
+  --white: #ffffff;
+  --glass: rgba(255, 255, 255, 0.1);
+  --glassStrong: rgba(255, 255, 255, 0.14);
+  --border: rgba(255, 255, 255, 0.18);
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color: #fff;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #021425;
+}
+
+/*=========================================================
+  AURORA BACKGROUND
+=========================================================*/
+.background {
+  position: fixed;
+  inset: 0;
+  z-index: -5;
+  background:
+    radial-gradient(circle at 15% 25%, #00bfff55 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, #0080ff55 0%, transparent 35%),
+    radial-gradient(circle at 50% 80%, #00ffd555 0%, transparent 30%),
+    linear-gradient(135deg, #001428, #002b55, #004c99, #0078d4);
+  background-size: 300% 300%;
+  animation: aurora 18s ease infinite;
+}
+
+@keyframes aurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/*=========================================================
+  FLOATING PARTICLES
+=========================================================*/
+#particles {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -2;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  animation: float linear infinite;
+}
+
+@keyframes float {
+  from { transform: translateY(100vh); opacity: 0; }
+  20% { opacity: 0.9; }
+  80% { opacity: 0.9; }
+  to { transform: translateY(-150px); opacity: 0; }
+}
+
+/*=========================================================
+  DASHBOARD SHELL
+=========================================================*/
+.dashboard {
+  width: 95%;
+  max-width: 1500px;
+  margin: 40px auto;
+}
+
+/*=========================================================
+  HEADER
+=========================================================*/
+header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 25px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.azureLogo {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00c6ff, #0078d4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 50px;
+  box-shadow: 0 0 35px rgba(0, 180, 255, 0.7);
+  animation: logoGlow 4s ease-in-out infinite;
+}
+
+@keyframes logoGlow {
+  50% { box-shadow: 0 0 55px rgba(0, 198, 255, 0.9); }
+}
+
+.headerText { text-align: left; }
+
+header h1 {
+  font-size: 42px;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+header h2 {
+  color: #bfe7ff;
+  font-size: 22px;
+  margin-top: 8px;
+  font-weight: 400;
+}
+
+/*=========================================================
+  HERO
+=========================================================*/
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.heroLeft,
+.heroRight {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.heroLeft {
+  padding: 40px;
+  text-align: center;
+}
+
+.heroRight {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.hostnameLabel {
+  font-size: 20px;
+  letter-spacing: 5px;
+  color: #a5d8ff;
+}
+
+#hostname {
+  margin-top: 20px;
+  font-size: 56px;
+  font-weight: bold;
+  color: var(--yellow);
+  word-break: break-word;
+  text-shadow:
+    0 0 15px rgba(255, 213, 79, 0.9),
+    0 0 35px rgba(255, 213, 79, 0.5);
+  animation: hostnamePulse 2s infinite;
+}
+
+@keyframes hostnamePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.status {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  color: var(--green);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px var(--green), 0 0 25px var(--green);
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0.3; }
+}
+
+#clock {
+  font-size: 46px;
+  font-weight: bold;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(0, 198, 255, 0.5);
+}
+
+#date {
+  margin-top: 18px;
+  font-size: 22px;
+  color: #bfe7ff;
+}
+
+/*=========================================================
+  METRIC CARDS + CIRCULAR GAUGES
+=========================================================*/
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 30px;
+}
+
+.card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(0, 198, 255, 0.6);
+  box-shadow: 0 18px 50px rgba(0, 130, 255, 0.4);
+}
+
+.card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #dff2ff;
+  margin-bottom: 22px;
+  letter-spacing: 1px;
+}
+
+/* Circular ring: conic-gradient sweep driven by --val (0–100) */
+.gauge {
+  --val: 0;
+  --ring: var(--cyan);
+  width: 160px;
+  height: 160px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    conic-gradient(var(--ring) calc(var(--val) * 1%), rgba(255, 255, 255, 0.08) 0);
+  transition: background 0.6s ease;
+  position: relative;
+}
+
+.gauge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 25px rgba(0, 198, 255, 0.35);
+}
+
+.gaugeInner {
+  width: 122px;
+  height: 122px;
+  border-radius: 50%;
+  background: rgba(4, 20, 37, 0.85);
+  display: grid;
+  place-items: center;
+  flex-direction: column;
+  font-size: 34px;
+  font-weight: bold;
+  color: #fff;
+  z-index: 1;
+}
+
+.gaugeInner span {
+  font-variant-numeric: tabular-nums;
+}
+
+.networkGauge {
+  background: conic-gradient(var(--green) 100%, var(--green) 0);
+}
+
+.networkGauge .gaugeInner { font-size: 22px; color: var(--green); }
+
+.throughput {
+  font-size: 15px;
+  font-weight: 500;
+  color: #bfe7ff;
+  margin-top: 4px;
+}
+
+.cardCaption {
+  margin-top: 18px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #9dc7e8;
+  text-transform: uppercase;
+}
+
+/*=========================================================
+  SYSTEM INFO CARDS
+=========================================================*/
+.system {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 30px;
+}
+
+.systemCard {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.systemCard:hover {
+  transform: translateY(-5px);
+  border-color: rgba(0, 198, 255, 0.5);
+}
+
+.systemCard span {
+  display: block;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #a5d8ff;
+  text-transform: uppercase;
+}
+
+.systemCard strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 24px;
+  color: #fff;
+}
+
+/*=========================================================
+  METRIC STRIP
+=========================================================*/
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 30px;
+}
+
+.metric {
+  background: var(--glassStrong);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.metricTitle {
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #a5d8ff;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.metric > div:last-child {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cyan);
+  word-break: break-word;
+}
+
+/*=========================================================
+  BANNER
+=========================================================*/
+.banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 30px;
+}
+
+.banner div {
+  background: linear-gradient(135deg, rgba(0, 198, 255, 0.18), rgba(0, 120, 212, 0.18));
+  border: 1px solid rgba(0, 198, 255, 0.4);
+  border-radius: 16px;
+  padding: 22px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 25px rgba(0, 130, 255, 0.25);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.banner div:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 40px rgba(0, 198, 255, 0.5);
+}
+
+/*=========================================================
+  FOOTER
+=========================================================*/
+footer {
+  margin: 40px 0 20px;
+  text-align: center;
+  color: #bfe7ff;
+  line-height: 1.9;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+/*=========================================================
+  RESPONSIVE
+=========================================================*/
+@media (max-width: 1100px) {
+  .grid,
+  .system,
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .hero { grid-template-columns: 1fr; }
+  #hostname { font-size: 48px; }
+}
+
+@media (max-width: 640px) {
+  header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .headerText { text-align: center; }
+  header h1 { font-size: 32px; }
+  header h2 { font-size: 18px; }
+  .grid,
+  .system,
+  .metrics,
+  .banner { grid-template-columns: 1fr; }
+  #hostname { font-size: 40px; }
+  #clock { font-size: 36px; }
+  .dashboard { margin: 20px auto; }
+}
+
+/* Accessibility: honor reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .background,
+  .azureLogo,
+  #hostname,
+  .dot,
+  .particle {
+    animation: none !important;
+  }
+  .card,
+  .systemCard,
+  .banner div { transition: none; }
+}

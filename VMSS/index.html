@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Azure VM Scale Set Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="particles"></div>
+  <div class="background"></div>
+
+  <div class="dashboard">
+    <header>
+      <div class="azureLogo">☁</div>
+      <div class="headerText">
+        <h1>Microsoft Azure</h1>
+        <h2>Virtual Machine Scale Set Dashboard</h2>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="heroLeft">
+        <div class="hostnameLabel">HOSTNAME</div>
+        <div id="hostname">Loading…</div>
+        <div class="status">
+          <span class="dot"></span>
+          HEALTHY
+        </div>
+      </div>
+      <div class="heroRight">
+        <div id="clock">--:--:--</div>
+        <div id="date">Loading…</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h3>CPU Usage</h3>
+        <div class="gauge" id="cpuGauge" style="--val:0">
+          <div class="gaugeInner"><span id="cpuPercent">0%</span></div>
+        </div>
+        <div class="cardCaption">Across all vCPUs</div>
+      </div>
+
+      <div class="card">
+        <h3>Memory</h3>
+        <div class="gauge" id="memoryGauge" style="--val:0">
+          <div class="gaugeInner"><span id="memoryPercent">0%</span></div>
+        </div>
+        <div class="cardCaption">RAM in use</div>
+      </div>
+
+      <div class="card">
+        <h3>Disk Usage</h3>
+        <div class="gauge" id="diskGauge" style="--val:0">
+          <div class="gaugeInner"><span id="diskPercent">0%</span></div>
+        </div>
+        <div class="cardCaption">OS + data disk</div>
+      </div>
+
+      <div class="card">
+        <h3>Network</h3>
+        <div class="gauge networkGauge">
+          <div class="gaugeInner">
+            <span id="networkStatus">Connected</span>
+            <div class="throughput"><span id="netThroughput">0</span> Mbps</div>
+          </div>
+        </div>
+        <div class="cardCaption">Live throughput</div>
+      </div>
+    </section>
+
+    <section class="system">
+      <div class="systemCard">
+        <span>Operating System</span>
+        <strong id="os">Ubuntu Linux</strong>
+      </div>
+      <div class="systemCard">
+        <span>NGINX</span>
+        <strong id="nginx">Running</strong>
+      </div>
+      <div class="systemCard">
+        <span>VM Scale Set</span>
+        <strong>Active</strong>
+      </div>
+      <div class="systemCard">
+        <span>Azure Region</span>
+        <strong id="region">Central India</strong>
+      </div>
+    </section>
+
+    <section class="metrics">
+      <div class="metric">
+        <div class="metricTitle">Public IP</div>
+        <div id="publicIP">Detecting…</div>
+      </div>
+      <div class="metric">
+        <div class="metricTitle">Uptime</div>
+        <div id="uptime">Running</div>
+      </div>
+      <div class="metric">
+        <div class="metricTitle">Refresh Status</div>
+        <div>Every 2 seconds</div>
+      </div>
+      <div class="metric">
+        <div class="metricTitle">Web Server</div>
+        <div>NGINX</div>
+      </div>
+    </section>
+
+    <section class="banner">
+      <div>Azure Load Balancer Ready</div>
+      <div>Azure Front Door Ready</div>
+      <div>VM Scale Set Auto Scaling Enabled</div>
+    </section>
+
+    <footer>
+      <div>Microsoft Azure VM Scale Set Demonstration</div>
+      <div>Auto-provisioned using Cloud-Init</div>
+    </footer>
+  </div>
+
+  <!-- config.js is written at boot by cloud-init with this VM's real hostname/region -->
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
