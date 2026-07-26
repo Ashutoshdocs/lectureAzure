@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Student Records</h1>
+
+<input
+class="search"
+id="search"
+placeholder="Search Student...">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>ID</th>
+
+<th>Name</th>
+
+<th>Email</th>
+
+<th>Actions</th>
+
+</tr>
+
+</thead>
+
+<tbody id="studentTable">
+
+{% for student in students %}
+
+<tr>
+
+<td>{{ student[0] }}</td>
+
+<td>{{ student[1] }}</td>
+
+<td>{{ student[2] }}</td>
+
+<td>
+
+<a
+class="edit"
+href="/edit/{{ student[0] }}">
+
+Edit
+
+</a>
+
+<a
+class="delete"
+href="/delete/{{ student[0] }}">
+
+Delete
+
+</a>
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+{% endblock %}
