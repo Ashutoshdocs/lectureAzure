@@ -1,0 +1,7 @@
+$PLAN="ScalePlan"
+
+az appservice plan create -g $RG -n $PLAN --sku P1v3 --is-linux
+
+$APP="scaledemo123456"
+
+az webapp create -g $RG -p $PLAN -n $APP -i $ACR.azurecr.io/scaledemo:v1
