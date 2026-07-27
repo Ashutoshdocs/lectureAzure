@@ -17,9 +17,9 @@
 param(
     [string]$ResourceGroup = 'vmss-demo-rg',
     [string]$VmssName      = 'vmssdemo-vmss',
-    [int]$Min              = 2,
-    [int]$Max              = 10,
-    [int]$Default          = 2,
+    [int]$Min              = 1,
+    [int]$Max              = 4,
+    [int]$Default          = 1,
     [int]$ScaleOutCpu      = 30,
     [int]$ScaleInCpu       = 15
 )
