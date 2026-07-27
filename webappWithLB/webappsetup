@@ -4,4 +4,13 @@ az appservice plan create -g $RG -n $PLAN --sku P1v3 --is-linux
 
 $APP="scaledemo123456"
 
-az webapp create -g $RG -p $PLAN -n $APP -i $ACR.azurecr.io/scaledemo:v1
+az webapp create -g $RG -p $PLAN -n $APP -i myacrdemoblaze.azurecr.io/scaledemo:v1
+
+
+
+az webapp update   --resource-group RG-WebApp --name scaledemo123456     --set clientAffinityEnabled=false
+
+az webapp show -g RG-WebApp -n scaledemo123456 --query clientAffinityEnabled
+
+    
+az webapp restart  -g RG-WebApp -n scaledemo123456
