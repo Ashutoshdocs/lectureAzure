@@ -1,0 +1,17 @@
+$USER = az acr credential show `
+-n $ACR `
+--query username `
+-o tsv
+
+$PASS = az acr credential show `
+-n $ACR `
+--query passwords[0].value `
+-o tsv
+
+az webapp config container set `
+-g $RG `
+-n $APP `
+--container-image-name $ACR.azurecr.io/scaledemo:v1 `
+--container-registry-url https://$ACR.azurecr.io `
+--container-registry-user $USER `
+--container-registry-password $PASS
