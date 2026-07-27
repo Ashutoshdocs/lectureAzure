@@ -1,4 +1,1 @@
-az appservice plan update `
--g $RG `
--n $PLAN `
---number-of-workers 3
+az appservice plan update -g $RG -n $PLAN --number-of-workers 3
