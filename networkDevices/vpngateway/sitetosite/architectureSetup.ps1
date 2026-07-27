@@ -136,7 +136,7 @@ az network local-gateway create `
 --local-address-prefixes 172.16.0.0/16
 
 ##################################################
-# VPN Connection
+# VPN Connection (run before runOnCompanyVM.ps1)
 ##################################################
 
 az network vpn-connection create `
