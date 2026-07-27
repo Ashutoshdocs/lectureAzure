@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Azure Student Portal</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static',filename='css/style.css') }}">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+</head>
+
+<body>
+
+<div class="sidebar">
+
+    <div class="logo">
+
+        ☁️ Azure Portal
+
+    </div>
+
+    <a href="/">
+        <i class="fa-solid fa-gauge"></i>
+        Dashboard
+    </a>
+
+    <a href="/add">
+        <i class="fa-solid fa-user-plus"></i>
+        Add Student
+    </a>
+
+    <a href="/students">
+        <i class="fa-solid fa-users"></i>
+        View Students
+    </a>
+
+    <a href="/export">
+        <i class="fa-solid fa-download"></i>
+        Export CSV
+    </a>
+
+    <a href="/health">
+        <i class="fa-solid fa-heart"></i>
+        Health
+    </a>
+
+</div>
+
+
+<div class="main">
+
+    <div class="topbar">
+
+        <h2>Azure Student Portal</h2>
+
+        <div class="profile">
+
+            Flask • Docker • PostgreSQL
+
+        </div>
+
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+
+        {% if messages %}
+
+            <div class="success">
+
+                {{ messages[0] }}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+    {% block content %}
+
+    {% endblock %}
+
+</div>
+
+<script src="{{ url_for('static',filename='js/app.js') }}"></script>
+
+</body>
+
+</html>
