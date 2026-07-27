@@ -1,0 +1,242 @@
+===========================================
+AZURE TRAFFIC MANAGER (HTTPS) PRACTICAL
+===========================================
+
+SERVICE:
+Azure Traffic Manager (Priority Routing)
+
+Region:
+Central India
+
+===========================================
+STEP 1: CREATE RESOURCE GROUP
+===========================================
+
+az group create -n tm-https-rg -l centralindia
+
+===========================================
+STEP 2: CREATE VIRTUAL MACHINES
+===========================================
+
+# Set Password
+
+$pass="warrison@123"
+
+# VM1
+
+az vm create -g tm-https-rg -n vm1 --image Ubuntu2204 --size Standard_B1s --admin-username azureuser --admin-password $pass --authentication-type password
+
+# VM2
+
+az vm create -g tm-https-rg -n vm2 --image Ubuntu2204 --size Standard_B1s --admin-username azureuser --admin-password $pass --authentication-type password
+
+# VM3
+
+az vm create -g tm-https-rg -n vm3 --image Ubuntu2204 --size Standard_B1s --admin-username azureuser --admin-password $pass --authentication-type password
+
+===========================================
+STEP 3: OPEN HTTP & HTTPS PORTS
+===========================================
+
+# VM1
+
+az network nsg rule create -g tm-https-rg --nsg-name vm1NSG --name Allow-HTTP --priority 1000 --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 80
+
+az network nsg rule create -g tm-https-rg --nsg-name vm1NSG --name Allow-HTTPS --priority 1010 --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 443
+
+# VM2
+
+az network nsg rule create -g tm-https-rg --nsg-name vm2NSG --name Allow-HTTP --priority 1000 --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 80
+
+az network nsg rule create -g tm-https-rg --nsg-name vm2NSG --name Allow-HTTPS --priority 1010 --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 443
+# VM3
+
+az network nsg rule create -g tm-https-rg --nsg-name vm3NSG --name Allow-HTTP --priority 1000 --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 80
+
+az network nsg rule create -g tm-https-rg --nsg-name vm3NSG --name Allow-HTTPS --priority 1010 --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 443
+
+===========================================
+STEP 4: GET PUBLIC IPs
+===========================================
+
+az vm list-ip-addresses -g tm-https-rg -o table
+
+Example
+
+VM1 : xx.xx.xx.xx
+VM2 : yy.yy.yy.yy
+VM3 : zz.zz.zz.zz
+
+===========================================
+STEP 5: CONNECT TO EACH VM
+===========================================
+
+VM1
+
+ssh azureuser@<VM1-PUBLIC-IP>
+
+VM2
+
+ssh azureuser@<VM2-PUBLIC-IP>
+
+VM3
+
+ssh azureuser@<VM3-PUBLIC-IP>
+
+===========================================
+STEP 6: INSTALL WEBSITE
+===========================================
+
+Run the HTTPS Bash script that creates:
+
+/var/www/html/
+
+│── index.html
+│── app.html
+└── secure.html
+
+Change only this variable before running on each VM:
+
+VM1
+
+VM_NAME="VM1"
+
+VM2
+
+VM_NAME="VM2"
+
+VM3
+
+VM_NAME="VM3"
+
+===========================================
+STEP 7: VERIFY INDIVIDUAL VMs
+===========================================
+
+VM1
+
+HTTP Home
+
+http://<VM1-PUBLIC-IP>/
+
+HTTP Application
+
+http://<VM1-PUBLIC-IP>/app.html
+
+HTTPS Secure Page
+
+https://<VM1-PUBLIC-IP>/
+
+-------------------------------------------
+
+VM2
+
+HTTP Home
+
+http://<VM2-PUBLIC-IP>/
+
+HTTP Application
+
+http://<VM2-PUBLIC-IP>/app.html
+
+HTTPS Secure Page
+
+https://<VM2-PUBLIC-IP>/
+
+-------------------------------------------
+
+VM3
+
+HTTP Home
+
+http://<VM3-PUBLIC-IP>/
+
+HTTP Application
+
+http://<VM3-PUBLIC-IP>/app.html
+
+HTTPS Secure Page
+
+https://<VM3-PUBLIC-IP>/
+
+===========================================
+STEP 8: CREATE TRAFFIC MANAGER PROFILE
+===========================================
+
+az network traffic-manager profile create -g tm-https-rg -n mytmprofile --routing-method Priority --unique-dns-name mytm-https-demo --ttl 30 --protocol HTTPS --port 443 --path "/"
+
+===========================================
+STEP 9: ADD ENDPOINTS
+===========================================
+
+VM1 (Priority 1)
+
+az network traffic-manager endpoint create -g tm-https-rg --profile-name mytmprofile -n vm1 --type externalEndpoints --target <VM1-PUBLIC-IP> --priority 1
+
+-------------------------------------------
+
+VM2 (Priority 2)
+
+az network traffic-manager endpoint create -g tm-https-rg --profile-name mytmprofile -n vm2 --type externalEndpoints --target <VM2-PUBLIC-IP> --priority 2
+
+-------------------------------------------
+
+VM3 (Priority 3)
+
+az network traffic-manager endpoint create -g tm-https-rg --profile-name mytmprofile -n vm3 --type externalEndpoints --target <VM3-PUBLIC-IP> --priority 3
+
+===========================================
+STEP 10: VERIFY ENDPOINT STATUS
+===========================================
+
+az network traffic-manager endpoint list -g tm-https-rg --profile-name mytmprofile -o table
+
+Expected
+
+Endpoint    Status    Monitor Status
+------------------------------------
+vm1         Enabled   Online
+vm2         Enabled   Online
+vm3         Enabled   Online
+
+===========================================
+STEP 11: ACCESS TRAFFIC MANAGER
+===========================================
+
+https://mytm-https-demo.trafficmanager.net
+
+# ============================================
+# CREATE HTTP TRAFFIC MANAGER PROFILE
+# ============================================
+
+az network traffic-manager profile create -g tm-https-rg -n mytm-http-profile --routing-method Priority --unique-dns-name mytm-http-demo --ttl 30 --protocol HTTP --port 80 --path "/"
+
+# ============================================
+# ADD HTTP ENDPOINTS
+# ============================================
+
+# VM1 (Priority 1)
+
+az network traffic-manager endpoint create -g tm-https-rg --profile-name mytm-http-profile -n vm1 --type externalEndpoints --target <VM1-PUBLIC-IP> --priority 1
+
+# VM2 (Priority 2)
+
+az network traffic-manager endpoint create -g tm-https-rg --profile-name mytm-http-profile -n vm2 --type externalEndpoints --target <VM2-PUBLIC-IP> --priority 2
+
+# VM3 (Priority 3)
+
+az network traffic-manager endpoint create -g tm-https-rg --profile-name mytm-http-profile -n vm3 --type externalEndpoints --target <VM3-PUBLIC-IP> --priority 3
+
+# ============================================
+# VERIFY ENDPOINTS
+# ============================================
+
+az network traffic-manager endpoint list -g tm-https-rg --profile-name mytm-http-profile -o table
+
+# ============================================
+# TEST HTTP TRAFFIC MANAGER
+# ============================================
+
+http://mytm-http-demo.trafficmanager.net/
+
+http://mytm-http-demo.trafficmanager.net/app.html

@@ -1,0 +1,23 @@
+from flask import Flask,request
+import sqlite3
+
+app=Flask(__name__)
+
+@app.route('/')
+def home():
+
+    empid=request.args.get('id')
+
+    if empid is None:
+        return "Application Healthy",200
+
+    conn=sqlite3.connect('employee.db')
+    cur=conn.cursor()
+
+    query=f"SELECT * FROM employees WHERE id={empid}"
+
+    rows=cur.execute(query).fetchall()
+
+    return str(rows)
+
+app.run(host='0.0.0.0',port=5000)
