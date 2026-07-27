@@ -1,0 +1,211 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - nginx
+
+write_files:
+  - path: /var/www/html/index.html
+    permissions: "0644"
+    owner: root:root
+    content: |
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Azure Cloud-Init Demo</title>
+
+          <style>
+
+          *{
+              margin:0;
+              padding:0;
+              box-sizing:border-box;
+              font-family:'Segoe UI',Arial,sans-serif;
+          }
+
+          body{
+              background:linear-gradient(135deg,#0078D4,#00B294);
+              display:flex;
+              justify-content:center;
+              align-items:center;
+              height:100vh;
+          }
+
+          .card{
+              width:850px;
+              background:white;
+              border-radius:18px;
+              overflow:hidden;
+              box-shadow:0 20px 40px rgba(0,0,0,.30);
+          }
+
+          .header{
+              background:#0078D4;
+              color:white;
+              text-align:center;
+              padding:35px;
+          }
+
+          .header h1{
+              font-size:40px;
+              margin-bottom:10px;
+          }
+
+          .header p{
+              font-size:18px;
+          }
+
+          .badge{
+              display:inline-block;
+              margin-top:15px;
+              background:#00B294;
+              padding:8px 18px;
+              border-radius:30px;
+              font-weight:bold;
+          }
+
+          .content{
+              padding:35px;
+          }
+
+          .success{
+              background:#E8F5E9;
+              border-left:6px solid #2E7D32;
+              padding:18px;
+              color:#222;
+              margin-bottom:25px;
+          }
+
+          table{
+              width:100%;
+              border-collapse:collapse;
+              margin-top:20px;
+          }
+
+          th{
+              background:#0078D4;
+              color:white;
+              padding:12px;
+          }
+
+          td{
+              border:1px solid #ddd;
+              padding:12px;
+          }
+
+          tr:nth-child(even){
+              background:#f7f7f7;
+          }
+
+          h2{
+              color:#0078D4;
+              margin-top:30px;
+              margin-bottom:15px;
+          }
+
+          ul{
+              margin-left:25px;
+              line-height:2;
+          }
+
+          .footer{
+              text-align:center;
+              background:#f2f2f2;
+              padding:20px;
+              color:#555;
+          }
+
+          </style>
+
+      </head>
+
+      <body>
+
+      <div class="card">
+
+          <div class="header">
+
+              <h1>Azure Cloud-Init Practical</h1>
+
+              <p>Automatic Linux Provisioning using Cloud-Init</p>
+
+              <div class="badge">
+                  Provisioning Successful
+              </div>
+
+          </div>
+
+          <div class="content">
+
+              <div class="success">
+
+                  <strong>Status:</strong>
+
+                  Ubuntu VM configured successfully using Cloud-Init.
+
+              </div>
+
+              <table>
+
+                  <tr>
+                      <th>Component</th>
+                      <th>Status</th>
+                  </tr>
+
+                  <tr>
+                      <td>Operating System</td>
+                      <td>Ubuntu Linux</td>
+                  </tr>
+
+                  <tr>
+                      <td>Provisioning Method</td>
+                      <td>Cloud-Init</td>
+                  </tr>
+
+                  <tr>
+                      <td>Web Server</td>
+                      <td>NGINX Installed</td>
+                  </tr>
+
+                  <tr>
+                      <td>Service Status</td>
+                      <td>Running</td>
+                  </tr>
+
+                  <tr>
+                      <td>Provisioning</td>
+                      <td>Completed</td>
+                  </tr>
+
+              </table>
+
+              <h2>Tasks Performed</h2>
+
+              <ul>
+                  <li>Updated Ubuntu packages</li>
+                  <li>Installed NGINX</li>
+                  <li>Created custom web page</li>
+                  <li>Started NGINX service</li>
+                  <li>Enabled NGINX on boot</li>
+              </ul>
+
+          </div>
+
+          <div class="footer">
+
+              Azure Virtual Machine | Cloud-Init | NGINX Demo
+
+          </div>
+
+      </div>
+
+      </body>
+      </html>
+
+runcmd:
+  - systemctl enable nginx
+  - systemctl restart nginx
