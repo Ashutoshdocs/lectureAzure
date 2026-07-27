@@ -1,0 +1,9 @@
+$USERNAME="azure"
+$PASSWORD="warrison@123"
+az group create --name rg-waf-demo --location centralindia
+az network vnet create --resource-group rg-waf-demo --name vnet-demo --address-prefix 10.0.0.0/16 --subnet-name backend-subnet --subnet-prefix 10.0.1.0/24
+az network vnet subnet create --resource-group rg-waf-demo --vnet-name vnet-demo --name appgw-subnet --address-prefix 10.0.2.0/24
+az vm create -g rg-waf-demo -n vm1 --image Ubuntu2204 --size Standard_B1s --admin-username $USERNAME --admin-password $PASSWORD --authentication-type password --vnet-name vnet-demo --subnet backend-subnet
+az vm create -g rg-waf-demo -n vm2 --image Ubuntu2204 --size Standard_B1s --admin-username $USERNAME --admin-password $PASSWORD --authentication-type password --vnet-name vnet-demo --subnet backend-subnet
+az vm open-port -g rg-waf-demo -n vm1 --port 5000
+az vm open-port -g rg-waf-demo -n vm2 --port 5000

@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Update packages
+apt-get update -y
+
+# Install nginx
+apt-get install -y nginx
+
+# Create a simple HTML page
+cat <<EOF >/var/www/html/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NGINX on Port 30080</title>
+</head>
+<body>
+    <h1>NGINX is running on port 30080!</h1>
+    <p>VM Extension Custom Data setup successful.</p>
+</body>
+</html>
+EOF
+
+# Configure nginx to listen on port 30080
+cat <<EOF >/etc/nginx/sites-available/default
+server {
+    listen 30080 default_server;
+    listen [::]:30080 default_server;
+
+    root /var/www/html;
+    index index.html;
+
+    server_name _;
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}
+EOF
+
+# Test nginx configuration
+nginx -t
+
+# Restart and enable nginx
+systemctl enable nginx
+systemctl restart nginx
+
+# Open firewall if UFW exists
+if command -v ufw >/dev/null 2>&1; then
+    ufw allow 30080/tcp || true
+fi
+
+echo "NGINX installation completed."
+echo "Access: http://<VM-IP>:30080"

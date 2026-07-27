@@ -1,0 +1,2 @@
+http://APPGW_PUBLIC_IP/?id=1 -> request
+http://APPGW_PUBLIC_IP/?id=1%20OR%201=1 -> attack
