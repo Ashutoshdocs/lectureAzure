@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Web App</title>
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+        }
+
+        body{
+            height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            background:linear-gradient(135deg,#0078D4,#00B7C3);
+        }
+
+        .card{
+            background:white;
+            padding:50px;
+            border-radius:20px;
+            box-shadow:0 20px 40px rgba(0,0,0,0.25);
+            text-align:center;
+            max-width:650px;
+            width:90%;
+            animation:fadeIn 1s ease-in-out;
+        }
+
+        h1{
+            color:#0078D4;
+            font-size:42px;
+            margin-bottom:20px;
+        }
+
+        h2{
+            color:#333;
+            margin-bottom:15px;
+        }
+
+        p{
+            color:#666;
+            font-size:18px;
+            line-height:1.7;
+            margin-bottom:25px;
+        }
+
+        .status{
+            display:inline-block;
+            background:#28a745;
+            color:white;
+            padding:12px 24px;
+            border-radius:30px;
+            font-weight:bold;
+            font-size:18px;
+        }
+
+        .footer{
+            margin-top:35px;
+            color:#777;
+            font-size:15px;
+        }
+
+        @keyframes fadeIn{
+            from{
+                opacity:0;
+                transform:translateY(30px);
+            }
+            to{
+                opacity:1;
+                transform:translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+
+    <h1>🚀 Azure Web App</h1>
+
+    <h2>Deployment Successful!</h2>
+
+    <p>
+        Congratulations! Your application has been successfully deployed to
+        <strong>Azure App Service</strong> using the
+        <strong>GitHub Actions CI/CD pipeline</strong>.
+    </p>
+
+    <div class="status">
+        ✅ Build Successful 
+    </div>
+
+    <div class="footer">
+        <p>
+            Powered by Microsoft Azure • GitHub Actions • HTML5
+        </p>
+    </div>
+
+</div>
+
+</body>
+</html>

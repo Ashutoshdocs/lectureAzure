@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Azure Deployment Dashboard</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Segoe UI',sans-serif;
+}
+
+body{
+
+height:100vh;
+
+display:flex;
+justify-content:center;
+align-items:center;
+
+background:linear-gradient(-45deg,#0078D4,#512BD4,#00B294,#005BA1);
+background-size:400% 400%;
+
+animation:bg 15s ease infinite;
+
+color:white;
+
+}
+
+@keyframes bg{
+
+0%{background-position:0% 50%;}
+50%{background-position:100% 50%;}
+100%{background-position:0% 50%;}
+
+}
+
+.container{
+
+width:900px;
+
+background:rgba(255,255,255,.12);
+
+backdrop-filter:blur(18px);
+
+padding:40px;
+
+border-radius:25px;
+
+box-shadow:0 25px 60px rgba(0,0,0,.35);
+
+}
+
+.header{
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+}
+
+.title{
+
+font-size:42px;
+
+font-weight:bold;
+
+}
+
+.subtitle{
+
+margin-top:8px;
+
+color:#e6e6e6;
+
+}
+
+.status{
+
+background:#16c60c;
+
+padding:12px 28px;
+
+border-radius:30px;
+
+font-weight:bold;
+
+font-size:18px;
+
+box-shadow:0 0 25px rgba(0,255,100,.5);
+
+animation:pulse 2s infinite;
+
+}
+
+@keyframes pulse{
+
+0%{transform:scale(1);}
+50%{transform:scale(1.05);}
+100%{transform:scale(1);}
+
+}
+
+.grid{
+
+margin-top:35px;
+
+display:grid;
+
+grid-template-columns:repeat(2,1fr);
+
+gap:20px;
+
+}
+
+.card{
+
+background:rgba(255,255,255,.08);
+
+padding:20px;
+
+border-radius:15px;
+
+transition:.3s;
+
+}
+
+.card:hover{
+
+transform:translateY(-6px);
+
+background:rgba(255,255,255,.15);
+
+}
+
+.label{
+
+font-size:13px;
+
+color:#ddd;
+
+text-transform:uppercase;
+
+letter-spacing:1px;
+
+}
+
+.value{
+
+margin-top:10px;
+
+font-size:24px;
+
+font-weight:bold;
+
+word-break:break-word;
+
+}
+
+.footer{
+
+margin-top:35px;
+
+text-align:center;
+
+font-size:16px;
+
+color:#ddd;
+
+}
+
+.footer span{
+
+font-weight:bold;
+
+color:white;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+
+<div>
+
+<div class="title">
+☁ Azure Web App
+</div>
+
+<div class="subtitle">
+GitHub Actions Continuous Deployment
+</div>
+
+</div>
+
+<div class="status">
+✔ SUCCESS
+</div>
+
+</div>
+
+<div class="grid">
+
+<div class="card">
+<div class="label">Repository</div>
+<div class="value">__REPOSITORY__</div>
+</div>
+
+<div class="card">
+<div class="label">Azure Web App</div>
+<div class="value">__WEBAPP__</div>
+</div>
+
+<div class="card">
+<div class="label">Branch</div>
+<div class="value">__BRANCH__</div>
+</div>
+
+<div class="card">
+<div class="label">Deployment Slot</div>
+<div class="value">__SLOT__</div>
+</div>
+
+<div class="card">
+<div class="label">Commit ID</div>
+<div class="value">__COMMIT__</div>
+</div>
+
+<div class="card">
+<div class="label">Deployment Time</div>
+<div class="value">__DATE__</div>
+</div>
+
+</div>
+
+<div class="footer">
+
+🚀 Built with
+<span>GitHub Actions</span>
+&
+<span>Azure App Service</span>
+
+</div>
+
+</div>
+
+</body>
+
+</html>
