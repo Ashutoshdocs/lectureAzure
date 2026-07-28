@@ -1,1 +1,10 @@
 az appservice plan update -g $RG -n $PLAN --number-of-workers 3
+
+
+1..20 | ForEach-Object {
+    $html = (Invoke-WebRequest "https://scaledemo123456.azurewebsites.net").Content
+
+    if ($html -match '<div class="value">([^<]+)</div>') {
+        $matches[1]
+    }
+}
