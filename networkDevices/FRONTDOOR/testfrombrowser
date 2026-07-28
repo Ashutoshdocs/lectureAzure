@@ -1,0 +1,5 @@
+1..20 | ForEach-Object {
+    $html = (Invoke-WebRequest "http://my-nginx-endpoint-e2huazdjadbxamb9.z01.azurefd.net").Content
+
+    $html
+}
