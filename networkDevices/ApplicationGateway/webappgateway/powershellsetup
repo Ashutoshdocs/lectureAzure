@@ -15,7 +15,7 @@ $WEBAPP="mywebapptestblaze"
 $SLOT="staging"
 
 az webapp deployment slot list -g main -n mywebapptestblaze --query "[].{Slot:name,Host:defaultHostName}" -o table
-az webapp deployment slot list -g main -n mywebapptestblaze --query "[].{Slot:name,Host:defaultHostName}" -o table
+az webapp list --query "[].{Name:name,ResourceGroup:resourceGroup,Host:defaultHostName}" -o table
 
 
 
