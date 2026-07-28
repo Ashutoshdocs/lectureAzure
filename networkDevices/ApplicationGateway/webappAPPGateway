@@ -1,0 +1,150 @@
+#==========================================================
+# VARIABLES
+#==========================================================
+
+$RG="RG-AppGateway-Demo"
+$LOCATION="CentralIndia"
+
+$VNET="demo-vnet"
+$SUBNET="appgw-subnet"
+
+$PUBLICIP="demo-appgw-pip"
+$APPGW="demo-appgateway"
+
+$WEBAPP="mywebapptestblaze"
+$SLOT="staging"
+
+az webapp deployment slot list -g main -n mywebapptestblaze --query "[].{Slot:name,Host:defaultHostName}" -o table
+az webapp deployment slot list -g main -n mywebapptestblaze --query "[].{Slot:name,Host:defaultHostName}" -o table
+
+
+
+$PROD_FQDN=""
+$STAGE_FQDN=""
+
+#==========================================================
+# VNET CREATION
+#==========================================================
+
+az network vnet create -g $RG -n $VNET --address-prefix 10.0.0.0/16 --subnet-name $SUBNET --subnet-prefix 10.0.1.0/24
+
+#==========================================================
+# CREATE PUBLIC IP (Skip if already exists)
+#==========================================================
+
+az network public-ip create `
+-g $RG `
+-n $PUBLICIP `
+--sku Standard `
+--allocation-method Static
+
+#==========================================================
+# CREATE APPLICATION GATEWAY (Skip if already exists)
+#==========================================================
+
+az network application-gateway create `
+-g $RG `
+-n $APPGW `
+--location $LOCATION `
+--sku Standard_v2 `
+--capacity 2 `
+--public-ip-address $PUBLICIP `
+--vnet-name $VNET `
+--subnet $SUBNET `
+--frontend-port 80 `
+--priority 100
+
+#==========================================================
+# CREATE BACKEND POOL
+#==========================================================
+
+az network application-gateway address-pool create `
+-g $RG `
+--gateway-name $APPGW `
+-n WebAppPool `
+--servers $PROD_FQDN $STAGE_FQDN
+
+#==========================================================
+# CREATE HEALTH PROBE
+#==========================================================
+
+az network application-gateway probe create `
+-g $RG `
+--gateway-name $APPGW `
+-n WebAppProbe `
+--protocol Https `
+--host-name-from-http-settings true `
+--path "/" `
+--interval 30 `
+--timeout 30 `
+--threshold 3
+
+#==========================================================
+# CREATE HTTPS BACKEND SETTINGS
+#==========================================================
+
+az network application-gateway http-settings create `
+-g $RG `
+--gateway-name $APPGW `
+-n WebAppHTTPS `
+--protocol Https `
+--port 443 `
+--probe WebAppProbe `
+--host-name-from-backend-pool true `
+--timeout 30
+
+#==========================================================
+# UPDATE DEFAULT RULE
+#==========================================================
+
+az network application-gateway rule update `
+-g $RG `
+--gateway-name $APPGW `
+-n rule1 `
+--address-pool WebAppPool `
+--http-settings WebAppHTTPS
+
+#==========================================================
+# VERIFY BACKEND HEALTH
+#==========================================================
+
+az network application-gateway show-backend-health `
+-g $RG `
+-n $APPGW
+
+#==========================================================
+# GET PUBLIC IP
+#==========================================================
+
+$PIPID = az network application-gateway show `
+-g $RG `
+-n $APPGW `
+--query "frontendIPConfigurations[0].publicIPAddress.id" `
+-o tsv
+
+$APPGWIP = az network public-ip show `
+--ids $PIPID `
+--query ipAddress `
+-o tsv
+
+Write-Host ""
+Write-Host "======================================="
+Write-Host "Application Gateway URL"
+Write-Host "http://$APPGWIP"
+Write-Host "======================================="
+
+az network application-gateway show-backend-health `
+-g $RG `
+-n $APPGW `
+-o json
+
+
+echo $PROD_FQDN
+echo $STAGE_FQDN
+
+
+
+az network application-gateway address-pool list `
+-g $RG `
+--gateway-name $APPGW `
+-o table
