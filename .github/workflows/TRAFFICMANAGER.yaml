@@ -21,4 +21,4 @@ jobs:
         with:
           app-name: MYXY
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./webappViaGithub
+          package: ./trafficManager/subnetbased
