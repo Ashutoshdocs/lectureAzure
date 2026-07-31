@@ -20,5 +20,6 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
  
       - name: Execute commands.ps1
-        shell: pwsh          # runs the PowerShell script (incl. Compress-Archive)
-        run: ./webappvnetinjection/commands.ps1
+        shell: pwsh
+        working-directory: webappvnetinjection   # app.py / templates / startup.sh live here
+        run: ./commands.ps1
