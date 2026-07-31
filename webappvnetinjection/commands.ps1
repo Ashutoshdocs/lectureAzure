@@ -16,7 +16,7 @@ $PLAN = "web-linux-plan"
 
 $WEBAPP = "studentportal1369430454"
 
-$SERVER = "pgsql$(Get-Random)"
+$SERVER = "pgsqlblazetestxy"
 
 $DB = "studentdb"
 
