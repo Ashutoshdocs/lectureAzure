@@ -1,0 +1,24 @@
+name: Run commands.ps1
+ 
+# Manual only — commands.ps1 creates billable Azure resources.
+on:
+  workflow_dispatch:
+ 
+permissions:
+  contents: read
+ 
+jobs:
+  run:
+    runs-on: ubuntu-latest          # az CLI + pwsh are both preinstalled; free on public repos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+ 
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+ 
+      - name: Execute commands.ps1
+        shell: pwsh          # runs the PowerShell script (incl. Compress-Archive)
+        run: ./webappvnetinjection/commands.ps1
