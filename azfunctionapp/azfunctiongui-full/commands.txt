@@ -1,0 +1,14 @@
+cd backend
+npm install
+func start        # confirm http://localhost:7071/api/visitorcounter returns JSON
+curl http://localhost:7071/api/visitorcounter
+func azure functionapp publish myfunctionblaze
+az functionapp config appsettings set --name myfunctionblaze --resource-group keep --settings "AzureWebJobsFeatureFlags=EnableWorkerIndexing"
+
+
+
+
+
+az functionapp cors remove --name myfunctionblaze --resource-group keep --allowed-origins "https://portal.azure.com"
+az functionapp cors add --name myfunctionblaze --resource-group keep --allowed-origins "*"
+curl -i https://myfunctionblaze-a9cva5dzeah7gvdw.centralindia-01.azurewebsites.net/api/visitorcounter

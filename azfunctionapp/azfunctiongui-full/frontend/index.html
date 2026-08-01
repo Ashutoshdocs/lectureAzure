@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Function Visitor Counter</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Azure Function Visitor Counter</h1>
+
+    <p class="subtitle">
+        HTTP Trigger + Azure Functions
+    </p>
+
+    <div class="card">
+        <h2>Total Visitors</h2>
+        <h1 id="counter">Loading...</h1>
+    </div>
+
+    <div class="card">
+        <h2>Your Public IP</h2>
+        <h2 id="ip">Loading...</h2>
+    </div>
+
+    <button onclick="loadData()">
+        Refresh
+    </button>
+
+    <p id="status">
+        Connecting...
+    </p>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
