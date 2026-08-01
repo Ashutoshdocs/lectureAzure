@@ -1,0 +1,51 @@
+name: Deploy Azure Traffic Manager WebApp
+
+on:
+  workflow_dispatch:
+    inputs:
+      webapp_name:
+        description: "Azure Web App Name"
+        required: true
+        type: string
+
+      page:
+        description: "Select HTML Page"
+        required: true
+        type: choice
+        default: index1
+        options:
+          - index1
+          - index2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Prepare Website
+        shell: bash
+        run: |
+          mkdir -p site
+
+          if [ "${{ github.event.inputs.page }}" = "index1" ]; then
+            cp networkDevices/trafficManager/sslbased/trafficManagerwithwebapp/index1.html site/index.html
+          else
+            cp networkDevices/trafficManager/sslbased/trafficManagerwithwebapp/index2.html site/index.html
+          fi
+
+          echo "Files prepared:"
+          ls -la site
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ github.event.inputs.webapp_name }}
+          package: site
