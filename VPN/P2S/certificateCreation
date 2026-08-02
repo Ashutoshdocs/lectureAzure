@@ -1,0 +1,35 @@
+#root cert creation
+$params = @{
+    Type = 'Custom'
+    Subject = 'CN=videoroot'
+    KeySpec = 'Signature'
+    KeyExportPolicy = 'Exportable'
+    KeyUsage = 'CertSign'
+    KeyUsageProperty = 'Sign'
+    KeyLength = 2048
+    HashAlgorithm = 'sha256'
+    NotAfter = (Get-Date).AddMonths(24)
+    CertStoreLocation = 'Cert:\CurrentUser\My'
+}
+$cert = New-SelfSignedCertificate @params
+
+
+#get the root cert 
+Get-ChildItem -Path "Cert:\CurrentUser\My"
+$cert = Get-ChildItem -Path "Cert:\CurrentUser\My\8D1A9C30C2614189A660B46AACB72DD3E162D858"
+#create child item
+$params = @{
+    Type = 'Custom'
+    Subject = 'CN=videochild'
+    DnsName = 'P2SChildCert2'
+    KeySpec = 'Signature'
+    KeyExportPolicy = 'Exportable'
+    KeyLength = 2048
+    HashAlgorithm = 'sha256'
+    NotAfter = (Get-Date).AddMonths(18)
+    CertStoreLocation = 'Cert:\CurrentUser\My'
+    Signer = $cert
+    TextExtension = @(
+     '2.5.29.37={text}1.3.6.1.5.5.7.3.2')
+}
+New-SelfSignedCertificate @params
