@@ -1,14 +1,19 @@
 cd backend
 npm install
+$env:FUNCTIONS_WORKER_RUNTIME="node"
 func start        # confirm http://localhost:7071/api/visitorcounter returns JSON
 curl http://localhost:7071/api/visitorcounter
 func azure functionapp publish myfunctionblaze
-az functionapp config appsettings set --name myfunctionblaze --resource-group keep --settings "AzureWebJobsFeatureFlags=EnableWorkerIndexing"
+az functionapp config appsettings set --name myfunctionblaze --resource-group main --settings "AzureWebJobsFeatureFlags=EnableWorkerIndexing"
 
 
 
 
 
-az functionapp cors remove --name myfunctionblaze --resource-group keep --allowed-origins "https://portal.azure.com"
-az functionapp cors add --name myfunctionblaze --resource-group keep --allowed-origins "*"
+az functionapp cors remove --name myfunctionblaze --resource-group main --allowed-origins "https://portal.azure.com"
+az functionapp cors add --name myfunctionblaze --resource-group main --allowed-origins "*"
+
+update the url you get from output : https://myfunctionblaze-a9cva5dzeah7gvdw.centralindia-01.azurewebsites.net/api/visitorcounter under script.js
+
+if you forgot then run :az functionapp function list --resource-group main --name myfunctionblaze -o table
 curl -i https://myfunctionblaze-a9cva5dzeah7gvdw.centralindia-01.azurewebsites.net/api/visitorcounter
