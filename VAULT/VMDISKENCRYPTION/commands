@@ -1,0 +1,123 @@
+AZURE ENCRYPTION COMMANDS – EXPLANATION NOTES
+=============================================
+
+1) az account set --subscription "6f787beb-8095-4923-ae3e-deba86057045"
+
+Purpose:
+This command sets the active Azure subscription for the current Azure CLI session.
+
+Explanation:
+If a user has access to multiple subscriptions, Azure CLI needs to know
+which subscription to run commands against. This command ensures that
+all subsequent encryption, VM, and disk commands are executed in the
+correct subscription.
+
+Impact:
+No configuration change is made to resources.
+It only changes the CLI context.
+
+------------------------------------------------------------
+
+2) az feature register --name EncryptionAtHost --namespace Microsoft.Compute
+
+Purpose:
+Registers the EncryptionAtHost feature for the subscription.
+
+Explanation:
+Encryption at Host is a subscription-level feature that must be explicitly
+registered before it can be used. This registration allows Azure to enable
+host-level encryption for newly created virtual machines.
+
+Important Notes:
+- This is a one-time operation per subscription.
+- Registration can take several minutes.
+- EncryptionAtHost cannot be enabled on existing VMs.
+
+------------------------------------------------------------
+
+3) az feature show --name EncryptionAtHost --namespace Microsoft.Compute
+
+Purpose:
+Checks the registration status of the EncryptionAtHost feature.
+
+Explanation:
+This command is used to verify whether the EncryptionAtHost feature has
+been successfully registered. The output will show a state such as:
+- Registering
+- Registered
+
+Usage:
+Only when the state is "Registered" can Encryption at Host be used.
+
+------------------------------------------------------------
+
+4) az disk show --resource-group firewall \
+   --name myVm_OsDisk_1_12b00626cc9b403ca6dd4e540656011f \
+   --query encryption.type --output tsv
+
+Purpose:
+Checks disk-level encryption at rest for the managed OS disk.
+
+Explanation:
+Azure Managed Disks are always encrypted at rest using Storage Service
+Encryption (SSE). This command shows which key is used for encryption.
+
+Possible Output Values:
+- EncryptionAtRestWithPlatformKey
+  (Microsoft-managed key – default)
+- EncryptionAtRestWithCustomerKey
+  (Customer-managed key using Disk Encryption Set)
+
+This confirms encryption at rest at the storage layer.
+
+------------------------------------------------------------
+
+5) az vm show --resource-group firewall \
+   --name myVm \
+   --query securityProfile.encryptionAtHost --output tsv
+
+Purpose:
+Checks whether Encryption at Host is enabled for the virtual machine.
+
+Explanation:
+Encryption at Host ensures that all data stored on the VM host is encrypted
+before being written to disk. This provides an additional layer of security
+beyond standard disk encryption.
+
+Output Meaning:
+- true  → Encryption at Host is enabled
+- false → Encryption at Host is not enabled
+
+Important:
+Encryption at Host can only be enabled at VM creation time.
+
+------------------------------------------------------------
+
+6) az disk show --resource-group firewall \
+   --name myVm_OsDisk_1_12b00626cc9b403ca6dd4e540656011f \
+   --query encryption
+
+Purpose:
+Displays the complete encryption configuration of the disk.
+
+Explanation:
+This command returns the full encryption object, including:
+- Encryption type
+- Disk Encryption Set ID (if CMK is used)
+- Key source details
+
+Use Case:
+This is mainly used for security audits, compliance checks,
+and detailed troubleshooting.
+
+------------------------------------------------------------
+
+SUMMARY
+-------
+- Azure Managed Disks are always encrypted at rest by default.
+- EncryptionAtHost is an optional, additional security feature.
+- Disk encryption and Encryption at Host are separate concepts.
+- EncryptionAtHost must be registered at the subscription level.
+- EncryptionAtHost cannot be enabled on an existing VM.
+
+END OF NOTES
