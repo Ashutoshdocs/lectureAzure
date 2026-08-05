@@ -1,0 +1,253 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║               LINUX CPU STRESS TESTING FOR AZURE MONITOR                   ║
+║              stress-ng + htop + Log Analytics Verification                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. INSTALL REQUIRED TOOLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Update package repository
+
+sudo apt update
+
+Install stress-ng
+
+sudo apt install -y stress-ng
+
+Install htop
+
+sudo apt install -y htop
+
+Verify installation
+
+stress-ng --version
+
+htop
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. CHECK CPU COUNT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+nproc
+
+Purpose
+-------
+• Shows the number of CPU cores available.
+• Helps determine how many workers to start.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. GENERATE CPU LOAD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Generate 50% CPU Load
+
+stress-ng --cpu 1 --cpu-load 50 --timeout 10m
+
+Purpose
+-------
+• Keeps CPU utilization around 50%.
+• Useful for testing Azure Monitor alerts.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Generate 75% CPU Load
+
+stress-ng --cpu 1 --cpu-load 75 --timeout 10m
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Generate 90% CPU Load
+
+stress-ng --cpu 1 --cpu-load 90 --timeout 10m
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Generate 100% CPU Load
+
+stress-ng --cpu 1 --cpu-load 100 --timeout 10m
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Use All CPU Cores
+
+stress-ng --cpu $(nproc) --cpu-load 100 --timeout 10m
+
+Purpose
+-------
+• Stresses every CPU core.
+• Ideal for high CPU alert testing.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. VERIFY CPU LOCALLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ View CPU Usage
+
+htop
+
+Purpose
+-------
+• Shows real-time CPU usage.
+• Confirms stress-ng is working.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+Alternative
+
+top
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. VERIFY CPU IN LOG ANALYTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Verify Performance Data Exists
+
+Perf
+| take 10
+
+Purpose
+-------
+• Confirms Azure Monitor Agent is sending performance counters.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Latest CPU Records
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| project TimeGenerated,
+          Computer,
+          ObjectName,
+          CounterName,
+          InstanceName,
+          CounterValue
+| order by TimeGenerated desc
+
+Purpose
+-------
+• Displays the latest CPU utilization records.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Average CPU (Last 30 Minutes)
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| where TimeGenerated > ago(30m)
+| summarize AverageCPU = avg(CounterValue)
+          by Computer
+
+Purpose
+-------
+• Shows average CPU utilization.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Maximum CPU
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| summarize MaximumCPU = max(CounterValue)
+          by Computer
+
+Purpose
+-------
+• Displays the peak CPU utilization.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ CPU Utilization Trend
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| summarize AverageCPU = avg(CounterValue)
+          by bin(TimeGenerated,1m)
+| render timechart
+
+Purpose
+-------
+• Shows CPU utilization over time.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. STOP STRESS TEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If timeout was not specified
+
+pkill stress-ng
+
+or
+
+killall stress-ng
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. QUICK TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌──────────────────────────────┬──────────────────────────────────────────────┐
+│ Check                        │ Command                                      │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ CPU Count                    │ nproc                                        │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Install stress-ng            │ sudo apt install -y stress-ng                │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Install htop                 │ sudo apt install -y htop                     │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Monitor CPU                  │ htop                                         │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Verify Perf Data             │ Perf | take 10                               │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Latest CPU                   │ Perf + Processor query                       │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ CPU Trend                    │ render timechart                             │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Stop Stress                  │ pkill stress-ng                              │
+└──────────────────────────────┴──────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. COMMON ISSUES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ Azure Monitor Agent is not running.
+
+□ Performance Counters are not enabled in the Data Collection Rule.
+
+□ Azure Portal metrics take 2–5 minutes to update.
+
+□ Azure Metrics show aggregated values (Average/Maximum).
+
+□ Verify locally with:
+
+    htop
+
+□ Verify Log Analytics with:
+
+    Perf
+    | take 10
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                              END OF REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
