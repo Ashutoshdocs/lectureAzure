@@ -1,0 +1,139 @@
+# Azure Storage Practical (Append Blob + Page Blob) - Explained
+
+# ------------------------------------------------------------
+
+# STEP 1: Create Resource Group
+
+# Purpose: Logical container to hold all Azure resources
+
+# ------------------------------------------------------------
+
+az group create --name rg-storage-lab --location centralindia
+
+# ------------------------------------------------------------
+
+# STEP 2: Create Storage Account
+
+# Purpose: Main service to store blobs (files)
+
+# ------------------------------------------------------------
+
+az storage account create --name mystgappenddemo123 --resource-group rg-storage-lab --location centralindia --sku Standard_LRS --kind StorageV2
+
+# ------------------------------------------------------------
+
+# STEP 3: Get Storage Account Key
+
+# Purpose: Authentication for accessing storage (less secure than identity)
+
+# ------------------------------------------------------------
+
+STORAGE_KEY=$(az storage account keys list --account-name mystgappenddemo123 --resource-group rg-storage-lab --query "[0].value" -o tsv)
+
+# ------------------------------------------------------------
+
+# STEP 4: Create Container (logs-container)
+
+# Purpose: Container to store log files (append blob demo)
+
+# ------------------------------------------------------------
+
+az storage container create --name logs-container --account-name mystgappenddemo123 --account-key $STORAGE_KEY
+
+# ------------------------------------------------------------
+
+# STEP 5: Create Append Blob (Initial Log File)
+
+# Purpose: Upload first log entry and create append blob
+
+# ------------------------------------------------------------
+
+echo "Initial log" > app-log.txt && az storage blob upload --account-name mystgappenddemo123 --account-key $STORAGE_KEY --container-name logs-container --name app-log.txt --file app-log.txt --type append
+
+# ------------------------------------------------------------
+
+# STEP 6: Append Data to Existing Blob
+
+# Purpose: Add new log entries without overwriting
+
+# ------------------------------------------------------------
+
+echo "Second log entry $(date)" > app-log.txt && az storage blob upload --account-name mystgappenddemo123 --account-key $STORAGE_KEY --container-name logs-container --name app-log.txt --file app-log.txt --type append
+
+# ------------------------------------------------------------
+
+# STEP 7: Download Blob
+
+# Purpose: Verify contents of append blob
+
+# ------------------------------------------------------------
+
+az storage blob download --account-name mystgappenddemo123 --account-key $STORAGE_KEY --container-name logs-container --name app-log.txt --file app-log.txt
+
+# ------------------------------------------------------------
+
+# STEP 8: Create Another Container (data-container)
+
+# Purpose: Used for page blob demo
+
+# ------------------------------------------------------------
+
+az storage container create --name data-container --account-name mystgappenddemo123 --account-key $STORAGE_KEY
+
+# ------------------------------------------------------------
+
+# STEP 9: List Blobs with Type
+
+# Purpose: Identify blob types (AppendBlob, PageBlob, BlockBlob)
+
+# ------------------------------------------------------------
+
+az storage blob list --account-name mystgappenddemo123 --account-key $STORAGE_KEY --container-name logs-container --query "[].{Name:name,Type:properties.blobType}" -o table
+
+# ------------------------------------------------------------
+
+# STEP 10: Create Page Blob (512 bytes)
+
+# Purpose: Page blobs require 512-byte aligned data (used for VHD)
+
+# ------------------------------------------------------------
+
+head -c 512 /dev/zero > page.bin && az storage blob upload --account-name mystgappenddemo123 --account-key $STORAGE_KEY --container-name data-container --name mypageblob.vhd --file page.bin --type page
+
+# ------------------------------------------------------------
+
+# STEP 11: List Containers
+
+# Purpose: Show all containers in storage account
+
+# ------------------------------------------------------------
+
+az storage container list --account-name mystgappenddemo123 --account-key $STORAGE_KEY -o table
+
+# ------------------------------------------------------------
+
+# STEP 12: List Page Blob Type
+
+# Purpose: Confirm blob type is PageBlob
+
+# ------------------------------------------------------------
+
+az storage blob list --account-name mystgappenddemo123 --account-key $STORAGE_KEY --container-name data-container --query "[].{Name:name,Type:properties.blobType}" -o table
+
+# ------------------------------------------------------------
+
+# FINAL NOTES:
+
+# ------------------------------------------------------------
+
+# Append Blob → Used for logs (data is appended)
+
+# Page Blob → Used for disks (random read/write, 512-byte aligned)
+
+# Block Blob → Default type for general file storage
+
+# Containers → Logical grouping of blobs
+
+# Storage Key → Used for authentication (not recommended for production)
+
+

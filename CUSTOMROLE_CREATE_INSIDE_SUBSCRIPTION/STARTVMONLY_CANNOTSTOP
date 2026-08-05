@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "roleName": "Start VM Only Role",
+    "description": "Can start VM but cannot stop it",
+    "assignableScopes": [
+      "/subscriptions/6f787beb-8095-4923-ae3e-deba86057045"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "Microsoft.Compute/virtualMachines/read",
+          "Microsoft.Compute/virtualMachines/start/action"
+        ],
+        "notActions": [
+          "Microsoft.Compute/virtualMachines/deallocate/action"
+        ],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ]
+  }
+}

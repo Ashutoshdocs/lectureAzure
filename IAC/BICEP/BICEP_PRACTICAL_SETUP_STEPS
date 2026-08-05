@@ -1,0 +1,111 @@
+# ---------------------------------------------------------
+# BLOCK 1: Install Azure CLI on Ubuntu
+# ---------------------------------------------------------
+
+# Download and install the Azure CLI package (Debian/Ubuntu)
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+
+
+# ---------------------------------------------------------
+# BLOCK 2: Install Bicep CLI using Azure CLI
+# ---------------------------------------------------------
+
+# This command downloads and installs the Bicep binary
+az bicep install
+
+
+
+# ---------------------------------------------------------
+# BLOCK 3: QUICK FIX – Make Bicep usable in CURRENT shell only
+# ---------------------------------------------------------
+
+# Check if the Bicep binary exists
+ls -l /root/.azure/bin/bicep
+
+# Make the bicep binary executable (just in case)
+chmod +x /root/.azure/bin/bicep
+
+# Add Bicep install location to PATH for this session
+export PATH="$PATH:/root/.azure/bin"
+
+# Verify that Bicep is now found in PATH
+which bicep
+
+# Check installed version
+bicep --version
+
+
+
+# ---------------------------------------------------------
+# BLOCK 4: PERSISTENT FIX – Make Bicep available in all future shells
+# ---------------------------------------------------------
+
+# Add Bicep path to bashrc so shells automatically load it
+echo 'export PATH="$PATH:/root/.azure/bin"' >> /root/.bashrc
+
+# Reload bashrc so the PATH updates immediately
+source /root/.bashrc
+
+# Verify again
+which bicep
+bicep --version
+
+
+
+# ---------------------------------------------------------
+# BLOCK 5: SYSTEM-WIDE FIX – Make Bicep available for all users
+# ---------------------------------------------------------
+
+# Ensure binary is executable
+chmod +x /root/.azure/bin/bicep
+
+# Create a symlink into /usr/local/bin (default system PATH)
+ln -s /root/.azure/bin/bicep /usr/local/bin/bicep
+
+# Verify Bicep is available globally
+which bicep
+bicep --version
+
+
+
+# ---------------------------------------------------------
+# BLOCK 6: Create Azure Resource Group
+# ---------------------------------------------------------
+
+# Creates a resource group named 'myRG' in East US region
+az group create --name myRG --location eastus
+
+
+
+# ---------------------------------------------------------
+# BLOCK 7: Deploy Bicep Template
+# ---------------------------------------------------------
+
+# Deploys the 'main.bicep' file into resource group 'myRG'
+# Also passes the admin password parameter to the VM template
+az deployment group create \
+  --resource-group myRG \
+  --template-file main.bicep \
+  --parameters adminPassword='YourPass@123'
+
+
+
+# ---------------------------------------------------------
+# BLOCK 8: What-If Deployment (Preview changes)
+# ---------------------------------------------------------
+
+# Shows what Azure will create/change BEFORE actually applying it
+az deployment group what-if \
+  --resource-group myRG \
+  --template-file main.bicep
+
+
+
+# ---------------------------------------------------------
+# BLOCK 9: Destroy Everything (Delete Resource Group)
+# ---------------------------------------------------------
+
+# Deletes the entire resource group and all resources inside it
+# --yes skips confirmation, --no-wait runs in background
+az group delete --name myRG --yes --no-wait

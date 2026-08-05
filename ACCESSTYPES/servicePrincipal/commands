@@ -1,0 +1,3 @@
+az login --service-principal -u APP_ID -p PASSWORD --tenant TENANT_ID
+az account show
+az storage account create --name mystg$RANDOM --resource-group sp-rg --location centralindia --sku Standard_LRS
