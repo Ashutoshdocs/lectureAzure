@@ -1,0 +1,39 @@
+=========================================================================================
+                                   AZCOPY COMMAND REFERENCE
+=========================================================================================
+
++-------------------------------+-----------------------------+------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+
+| Action                        | Direction                   | Command Format                                             | Example                                                                                                              |
++-------------------------------+-----------------------------+------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+
+| Upload Single File            | Local --> Azure Blob        | azcopy copy "local\file"                                   | azcopy copy "D:\vm2_key.pem"                                                                                         |
+|                               |                             | "blob_url/?<SAS_token>"                                    | "https://stgblaze123.blob.core.windows.net/mycontainer/?<SAS_token>"                                                 |
++-------------------------------+-----------------------------+------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+
+| Upload Folder (Recursive)     | Local --> Azure Blob        | azcopy copy "local_folder"                                 | azcopy copy "D:\mycontainer"                                                                                         |
+|                               |                             | "blob_url/container?<SAS_token>" --recursive=true          | "https://stgblaze123.blob.core.windows.net/mycontainer?<SAS_token>" --recursive=true                                |
++-------------------------------+-----------------------------+------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+
+| Download Single File          | Azure Blob --> Local        | azcopy copy "blob_url/file?<SAS_token>"                    | azcopy copy "https://stgblaze123.blob.core.windows.net/mycontainer/vm2_key.pem?<SAS_token>"                         |
+|                               |                             | "local\file"                                               | "D:\vm2_key.pem"                                                                                                     |
++-------------------------------+-----------------------------+------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+
+| Download Container            | Azure Blob --> Local        | azcopy copy "blob_url/container?<SAS_token>"               | azcopy copy "https://stgblaze123.blob.core.windows.net/mycontainer?<SAS_token>"                                     |
+| (Recursive)                   |                             | "local_folder" --recursive=true                            | "D:\mycontainer" --recursive=true                                                                                    |
++-------------------------------+-----------------------------+------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------+
+
+NOTES
+=========================================================================================
+
+1. Generate a SAS Token
+   - Open the Storage Account.
+   - Open the Blob Container.
+   - Select "Generate SAS" (Shared Access Signature).
+   - Copy the value from the "SAS Token (Signature)" field.
+
+2. Get the Container URL
+   - Open the Blob Container.
+   - Go to the Properties tab.
+   - Copy the Container URL.
+   - Append the SAS Token to the URL before using AzCopy.
+
+Example:
+https://stgblaze123.blob.core.windows.net/mycontainer?<SAS_token>
+
+=========================================================================================
