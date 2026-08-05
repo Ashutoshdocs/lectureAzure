@@ -1,0 +1,41 @@
+#install az cli
+curl -fsSL 'https://azurecliprod.blob.core.windows.net/$root/deb_install.sh' | sudo bash
+
+#create rg
+az group create --name stack-rg --location centralindia
+
+#list rgs
+az group list --output table
+
+#test bicep file
+az bicep build --file main.bicep
+az deployment group validate --resource-group stack-rg --template-file main.bicep
+
+#enable stack graph
+az extension add --name resource-graph
+az provider register --namespace Microsoft.Resources
+
+az stack group create --name webapp-stack --resource-group stack-rg --template-file main.bicep  --deny-settings-mode none --action-on-unmanage deleteResources
+
+
+#verify
+az resource list --resource-group stack-rg --output table
+az stack group show --name webapp-stack --resource-group stack-rg
+
+#add deletion protection
+az stack group create --name webapp-stack --resource-group stack-rg --template-file main.bicep --deny-settings-mode denyDelete --action-on-unmanage detachAll
+az storage account delete --name stackstorage12345 --resource-group stack-rg
+az stack group create --name webapp-stack --resource-group stack-rg --template-file main.bicep --deny-settings-mode none --action-on-unmanage detachAll --yes
+
+
+
+#update tags
+az storage account show --name stackstorage12345 --resource-group stack-rg --query tags
+az stack group create --name webapp-stack --resource-group stack-rg --template-file main.bicep --deny-settings-mode denyDelete --action-on-unmanage detachAll --yes
+az stack group create --name webapp-stack --resource-group stack-rg --template-file main.bicep --deny-settings-mode none --action-on-unmanage deleteResources --yes
+az stack group delete --name webapp-stack --resource-group stack-rg --action-on-unmanage deleteResources --yes
+
+
+
+#drift
+az deployment group what-if --resource-group stack-rg --template-file main.bicep

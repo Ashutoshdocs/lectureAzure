@@ -1,0 +1,127 @@
+sudo apt update
+sudo apt install nodejs npm -y
+
+mkdir crud-api && cd crud-api
+npm init -y
+npm install express body-parser
+
+--------------------------------------------------------------------------
+create a file name :app.js
+--------------------------------------------------------------------------
+const express = require('express');
+const app = express();
+app.use(express.json());
+
+let data = [{ id: 1, name: "Item1" }];
+
+// GET
+app.get('/items', (req, res) => {
+    res.json(data);
+});
+
+// POST
+app.post('/items', (req, res) => {
+    const item = { id: data.length + 1, name: req.body.name };
+    data.push(item);
+    res.json(item);
+});
+
+// PUT (UPDATE)
+app.put('/items/:id', (req, res) => {
+    const item = data.find(i => i.id == req.params.id);
+    if (item) {
+        item.name = req.body.name;
+        res.json(item);
+    } else {
+        res.status(404).send("Not found");
+    }
+});
+
+// DELETE
+app.delete('/items/:id', (req, res) => {
+    data = data.filter(i => i.id != req.params.id);
+    res.send("Deleted");
+});
+
+app.listen(3000, () => console.log("Server running on port 3000"));
+---------------------------------------------------------------------------------------------------
+
+run the script via:
+node app.js
+
+--------------------------------------
+
+post:
+
+curl -X POST "https://blazeapi.azure-api.net/items" \
+-H "Content-Type: application/json" \
+-H "Ocp-Apim-Subscription-Key: 78c86ce11bb143b58c5317a4891e0cb3" \
+-d '{"name":"Item2"}'
+
+
+
+-------------------------
+
+get :
+curl -X GET "https://blazeapi.azure-api.net/items" \
+-H "Ocp-Apim-Subscription-Key: 78c86ce11bb143b58c5317a4891e0cb3"
+
+-------------------------------
+
+
+put :
+
+curl -X PUT "https://blazeapi.azure-api.net/items/1" \
+-H "Content-Type: application/json" \
+-H "Ocp-Apim-Subscription-Key: 78c86ce11bb143b58c5317a4891e0cb3" \
+-d '{"name":"UpdatedItem"}'
+
+
+---------------------------------
+
+delete:
+
+
+curl -X DELETE "https://blazeapi.azure-api.net/items/1" \
+-H "Ocp-Apim-Subscription-Key: 78c86ce11bb143b58c5317a4891e0cb3"
+
+
+
+
+
+
+
+--------------------------------
+
+
+outbound policy
+
+
+
+
+
+
+
+<policies>
+    <inbound>
+        <base />
+    </inbound>
+
+    <backend>
+        <base />
+    </backend>
+
+    <outbound>
+        <base />
+        <set-body>
+        @{
+            var response = context.Response.Body.As<string>();
+            return "{ \"status\": \"success\", \"data\": " + response + " }";
+        }
+        </set-body>
+    </outbound>
+
+    <on-error>
+        <base />
+    </on-error>
+</policies>

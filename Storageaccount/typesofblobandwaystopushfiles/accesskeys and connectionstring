@@ -1,0 +1,72 @@
+# Azure Storage Upload using Access Key vs Connection String
+
+# ------------------------------------------------------------
+
+# METHOD 1: Using Access Key
+
+# ------------------------------------------------------------
+
+# Create a file locally
+
+# Purpose: This file will be uploaded to Azure Blob Storage
+
+echo "Hello from Access Key" > file1.txt
+
+# Upload file using Storage Account Name + Access Key
+
+# Purpose: Authenticate using account key (less secure, but commonly used)
+
+az storage blob upload --account-name mystorageblaze123 --account-key AbCdEf123456... --container-name demo-container --name file1.txt --file file1.txt
+
+# ------------------------------------------------------------
+
+# METHOD 2: Using Connection String
+
+# ------------------------------------------------------------
+
+# Set environment variable with connection string
+
+# Purpose: Stores all required info (account name + key + endpoints)
+
+export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=..."
+
+# Create another file locally
+
+# Purpose: Demonstrate upload using connection string authentication
+
+echo "Hello from Connection String" > file2.txt
+
+# Upload file using connection string (no need for account-name/key explicitly)
+
+# Purpose: Simpler and widely used in applications/config files
+
+az storage blob upload --container-name demo-container --name file2.txt --file file2.txt
+
+# ------------------------------------------------------------
+
+# KEY DIFFERENCE:
+
+# ------------------------------------------------------------
+
+# Access Key:
+
+# - Requires account name + key separately
+
+# - More manual configuration
+
+#
+
+# Connection String:
+
+# - Contains all details in one string
+
+# - Easier for apps and automation
+
+#
+
+# Security Note:
+
+# - Both are less secure than Managed Identity
+
+# - Avoid hardcoding keys in real-world applications
+

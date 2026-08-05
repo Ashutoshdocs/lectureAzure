@@ -1,0 +1,2 @@
+az login --identity
+az storage blob upload --account-name mystg123demo --container-name demo-container --name file1.txt --file file1.txt --auth-mode login

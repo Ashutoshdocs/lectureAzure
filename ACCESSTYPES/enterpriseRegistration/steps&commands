@@ -1,0 +1,53 @@
+sudo apt update
+sudo apt install python3-pip python3-venv nginx openssl -y
+mkdir ~/entra-app
+cd ~/entra-app
+python3 -m venv venv
+source venv/bin/activate
+pip install flask msal gunicorn
+create file:app.py
+sudo mkdir -p /etc/nginx/ssl
+
+#create cert:
+sudo openssl req -x509 -nodes -days 365 \
+-newkey rsa:2048 \
+-keyout /etc/nginx/ssl/nginx.key \
+-out /etc/nginx/ssl/nginx.crt
+
+common name:vmpublicip
+--------------------------------------------
+sudo rm /etc/nginx/sites-enabled/default
+vim /etc/nginx/sites-available/entra-app: add nginx file
+
+sudo ln -s /etc/nginx/sites-available/entra-app /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+--------------------------------------
+
+  
+Microsoft Entra ID
+→ App registrations
+→ New registration
+Field	Value:
+Name:	vm-enterprise-app
+Account Type:	Single tenant
+Redirect URI Type:	Web
+Redirect URI: https://vmpublicip/getAToken
+
+cd ~/entra-app
+source venv/bin/activate
+python app.py
+
+---------------------------------------------
+
+
+Enterprise Applications
+→ vm-enterprise-app
+→ Properties
+
+Enable:
+Assignment Required = Yes
+Now:
+Users and groups
+→ Add user/group
