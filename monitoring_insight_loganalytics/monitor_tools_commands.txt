@@ -1,0 +1,321 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║               AZURE MONITOR AGENT (AMA) - LINUX MONITORING                 ║
+║                     LOG ANALYTICS QUICK REFERENCE                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. VERIFY AZURE MONITOR AGENT (AMA)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Check Agent Status
+
+systemctl status azuremonitoragent
+
+Expected
+--------
+✓ Service Status : active (running)
+✓ No repeated errors
+✓ Agent started successfully
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. VERIFY THE AGENT IS SENDING DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Heartbeat (Last 1 Hour)
+
+Heartbeat
+| where TimeGenerated > ago(1h)
+| project TimeGenerated, Computer
+| order by TimeGenerated desc
+
+Purpose
+-------
+• Confirms the VM is connected to Log Analytics.
+• If no results appear, verify:
+    - Azure Monitor Agent
+    - Data Collection Rule (DCR)
+    - Network connectivity
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Verify Performance Data
+
+Perf
+| take 10
+
+Purpose
+-------
+• Confirms Performance Counters are reaching Log Analytics.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ View Recent Syslog Messages
+
+Syslog
+| take 20
+
+Purpose
+-------
+• Displays the latest Linux syslog events.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Verify Authentication Logs
+
+Syslog
+| where Facility == "authpriv"
+| order by TimeGenerated desc
+
+Purpose
+-------
+• Confirms authentication logs are being collected.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. PERFORMANCE MONITORING (CPU)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ View Latest CPU Records
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| project TimeGenerated,
+          Computer,
+          ObjectName,
+          CounterName,
+          InstanceName,
+          CounterValue
+| order by TimeGenerated desc
+
+Purpose
+-------
+• Displays the latest CPU performance records.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Average CPU Usage (Last 30 Minutes)
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| where TimeGenerated > ago(30m)
+| summarize AverageCPU = avg(CounterValue)
+          by Computer
+
+Purpose
+-------
+• Shows average CPU utilization during the last 30 minutes.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Maximum CPU Usage
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| summarize MaximumCPU = max(CounterValue)
+          by Computer
+
+Purpose
+-------
+• Displays the highest CPU utilization recorded.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ CPU Trend
+
+Perf
+| where ObjectName contains "Processor"
+   or CounterName contains "Processor"
+| summarize AverageCPU = avg(CounterValue)
+          by bin(TimeGenerated, 1m)
+| render timechart
+
+Purpose
+-------
+• Displays CPU utilization over time.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Discover Available Performance Counters
+
+Perf
+| summarize Count = count()
+    by ObjectName,
+       CounterName,
+       InstanceName
+| order by Count desc
+
+Purpose
+-------
+• Lists all available performance counters.
+• Useful when exact counter names differ between Windows and Linux.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. AUTHENTICATION FAILURE QUERIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Failed Password Attempts
+
+Syslog
+| where Facility == "authpriv"
+| where SyslogMessage has "Failed password"
+| project TimeGenerated,
+          Computer,
+          ProcessName,
+          SyslogMessage
+| order by TimeGenerated desc
+
+Purpose
+-------
+• Displays SSH failed password attempts.
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+▶ Authentication Failures (Multiple Types)
+
+Syslog
+| where SyslogMessage has_any (
+    "Failed password",
+    "authentication failure",
+    "Invalid user"
+)
+| project TimeGenerated,
+          Computer,
+          ProcessName,
+          SyslogMessage
+| order by TimeGenerated desc
+
+Purpose
+-------
+Collects all common authentication failures:
+• Failed password
+• Invalid user
+• PAM authentication failure
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. COUNT FAILED LOGIN ATTEMPTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Syslog
+| where SyslogMessage has "Failed password"
+| summarize FailedAttempts = count() by Computer
+
+Purpose
+-------
+• Counts failed SSH login attempts per Linux VM.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. TOP SOURCE IP ADDRESSES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Syslog
+| where SyslogMessage has "Failed password"
+| extend SourceIP = extract(@"from ([0-9\.]+)",1,SyslogMessage)
+| summarize Attempts = count() by SourceIP
+| order by Attempts desc
+
+Purpose
+-------
+• Shows which IP addresses are generating the most failed SSH logins.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. FAILED LOGINS DURING LAST 30 MINUTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Syslog
+| where TimeGenerated > ago(30m)
+| where SyslogMessage has "Failed password"
+| project TimeGenerated,
+          Computer,
+          SyslogMessage
+| order by TimeGenerated desc
+
+Purpose
+-------
+• Displays recent failed login attempts.
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          QUICK TROUBLESHOOTING                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────┬──────────────────────────────────────────────┐
+│ Check                        │ Command / Query                              │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Agent Status                 │ systemctl status azuremonitoragent           │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Heartbeat                    │ Heartbeat                                   │
+│                              │ | where TimeGenerated > ago(1h)             │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Performance Data             │ Perf | take 10                              │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Latest CPU                   │ Perf                                        │
+│                              │ | where ObjectName contains                 │
+│                              │   "Processor"                               │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ CPU Trend                    │ summarize avg(CounterValue)                 │
+│                              │ | render timechart                          │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Recent Syslog                │ Syslog | take 20                            │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Authentication Logs          │ Syslog                                      │
+│                              │ | where Facility=="authpriv"                │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Failed SSH Logins            │ Syslog                                      │
+│                              │ | where SyslogMessage has                   │
+│                              │   "Failed password"                         │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Failed Login Count           │ summarize FailedAttempts=count()            │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Top Attacking IPs            │ extract(@"from ([0-9\\.]+)",1,              │
+│                              │ SyslogMessage)                              │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ Recent Failed Logins         │ TimeGenerated > ago(30m)                    │
+└──────────────────────────────┴──────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        COMMON ISSUES IF NO DATA APPEARS                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+□ Azure Monitor Agent is not running.
+
+□ VM is not connected to the Log Analytics Workspace.
+
+□ Data Collection Rule (DCR) is not associated with the VM.
+
+□ Performance Counters are not enabled in the DCR.
+
+□ Syslog collection is not enabled.
+
+□ "authpriv" facility is not enabled.
+
+□ No authentication events have occurred.
+
+□ Azure Monitor Agent cannot reach Azure Monitor endpoints.
+
+□ Verify:
+      Perf    | take 10
+      Syslog  | take 10
+      Heartbeat | take 10
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                           END OF QUICK REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
