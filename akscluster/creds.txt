@@ -1,0 +1,21 @@
+docker build -t blazeak/aksclusterdemo:1.0 .
+docker push blazeak/aksclusterdemo:1.0
+
+
+kubectl exec -it deploy/mysql -- bash
+mysql -uroot -p
+Password@123
+use demo;
+
+select * from users;
+
+
+INSERT INTO users (name, message)
+VALUES
+('Alice', 'Hello AKS'),
+('Bob', 'Learning Kubernetes');
+
+
+DELETE FROM users
+WHERE id = 2;
+
