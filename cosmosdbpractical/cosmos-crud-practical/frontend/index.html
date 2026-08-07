@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cosmos DB CRUD Practical</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>Cosmos DB CRUD</h1>
+    <p class="sub">Add / edit / delete items — stored live in Azure Cosmos DB.</p>
+
+    <!-- FORM -->
+    <div class="card">
+      <h2 id="formTitle">Add Item</h2>
+      <input type="hidden" id="itemId" />
+      <input type="hidden" id="oldCategory" />
+      <div class="row">
+        <label>Name
+          <input type="text" id="name" placeholder="e.g. Laptop" />
+        </label>
+        <label>Category (partition key)
+          <input type="text" id="category" placeholder="e.g. electronics" />
+        </label>
+        <label>Price
+          <input type="number" id="price" placeholder="0" min="0" step="0.01" />
+        </label>
+      </div>
+      <div class="actions">
+        <button id="saveBtn" onclick="saveItem()">Add</button>
+        <button id="cancelBtn" class="ghost" onclick="resetForm()" style="display:none">Cancel</button>
+      </div>
+      <p id="msg" class="msg"></p>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card">
+      <div class="tablehead">
+        <h2>Items</h2>
+        <button class="ghost" onclick="loadItems()">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Category</th><th>Price</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="4" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
