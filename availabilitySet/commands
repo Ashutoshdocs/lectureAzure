@@ -1,0 +1,50 @@
+# Variables
+$resourceGroup = "my-rg"
+$location = "centralindia"
+$availabilitySet = "my-avset"
+
+# Create Resource Group
+az group create `
+    --name $resourceGroup `
+    --location $location
+
+# Create Availability Set
+az vm availability-set create `
+    --resource-group $resourceGroup `
+    --name $availabilitySet `
+    --location $location `
+    --platform-fault-domain-count 3 `
+    --platform-update-domain-count 10 `
+    --sku aligned
+
+# Verify Availability Set
+az vm availability-set show `
+    --resource-group $resourceGroup `
+    --name $availabilitySet `
+    --query "{Name:name,FaultDomains:platformFaultDomainCount,UpdateDomains:platformUpdateDomainCount}" `
+    --output table
+#list fault and update domain
+az vm availability-set show `
+    --resource-group $resourceGroup `
+    --name $availabilitySet `
+    --query "{Name:name,FaultDomains:platformFaultDomainCount,UpdateDomains:platformUpdateDomainCount}" `
+    --output table
+
+
+#create vm in as
+az vm create `
+    --resource-group $resourceGroup `
+    --name vm01 `
+    --image Ubuntu2204 `
+    --admin-username $adminUser `
+    --admin-password $adminPassword `
+    --authentication-type password `
+    --availability-set $availabilitySet
+
+
+#list vms in as
+az vm list `
+    --resource-group $resourceGroup `
+    --show-details `
+    --query "[].{VM:name,PowerState:powerState,AvailabilitySet:availabilitySet.id}" `
+    --output table
