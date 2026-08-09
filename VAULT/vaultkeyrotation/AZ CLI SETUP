@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+echo "🔹 Updating system..."
+sudo apt-get update -y
+
+echo "🔹 Installing required packages..."
+sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
+
+echo "🔹 Adding Microsoft GPG key..."
+curl -sL https://packages.microsoft.com/keys/microsoft.asc | \
+  sudo gpg --dearmor | \
+  sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
+
+echo "🔹 Adding Azure CLI repository..."
+AZ_REPO=$(lsb_release -cs)
+echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ ${AZ_REPO} main" | \
+  sudo tee /etc/apt/sources.list.d/azure-cli.list
+
+echo "🔹 Installing Azure CLI..."
+sudo apt-get update -y
+sudo apt-get install -y azure-cli
+
+echo "✅ Azure CLI installation completed!"
+az version

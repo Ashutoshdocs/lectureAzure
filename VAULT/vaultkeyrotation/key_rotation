@@ -1,0 +1,28 @@
+##################Rotate the key:
+echo -n "Rotated@456" > /tmp/mysql_pass.txt
+
+az keyvault secret set \
+  --vault-name nnnop \
+  --name mysql-password \
+  --file /tmp/mysql_pass.txt
+####################update passowrd for user:
+  mysql -u root <<EOF
+ALTER USER 'appuser'@'localhost' IDENTIFIED BY 'Rotated@456';
+FLUSH PRIVILEGES;
+EOF
+#####################Rollback on password in db:
+mysql -u root <<EOF
+ALTER USER 'appuser'@'localhost' IDENTIFIED BY '$OLD_PASSWORD';
+FLUSH PRIVILEGES;
+EOF
+#####################rollback on keyvault:
+az keyvault secret set \
+  --vault-name kv-mysql-demo-123 \
+  --name mysql-password \
+  --value "$OLD_PASSWORD"
+###############disable broken version:
+az keyvault secret set-attributes \
+  --vault-name kv-mysql-demo-123 \
+  --name mysql-password \
+  --version <BAD_VERSION_ID> \
+  --enabled false
