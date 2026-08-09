@@ -1,0 +1,3 @@
+az keyvault secret show --vault-name <KEYVAULT_NAME> --name <SECRET_NAME> --query value -o tsv
+az login --identity
+az keyvault secret show --id "https://<KEYVAULT_NAME>.vault.azure.net/secrets/<SECRET_NAME>/<VERSION>" --query value -o tsv
