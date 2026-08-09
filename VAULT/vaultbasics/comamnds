@@ -1,3 +1,15 @@
 az keyvault secret show --vault-name <KEYVAULT_NAME> --name <SECRET_NAME> --query value -o tsv
 az login --identity
 az keyvault secret show --id "https://<KEYVAULT_NAME>.vault.azure.net/secrets/<SECRET_NAME>/<VERSION>" --query value -o tsv
+
+
+
+####FETCH CONNECTIONSTRING
+STORAGE_CONN=$(az keyvault secret show --vault-name myvaulttest123blaze --name storage-conn --query value -o tsv)
+
+#####CREATE CONTAINER IN STORAGE ACCOUNT
+az storage container create --name demo --connection-string "$STORAGE_CONN"
+
+#####CREATE FILE AND PUT IT IN CONTAINER
+echo "Hello from VM via Key Vault" > test.txt
+az storage blob upload --container-name demo --name test.txt  --file test.txt --connection-string "$STORAGE_CONN"
