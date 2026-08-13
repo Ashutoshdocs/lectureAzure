@@ -1,0 +1,20 @@
+{
+  "mode": "Indexed",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "tags['Environment']",
+          "exists": "false"
+        },
+        {
+          "field": "tags['Owner']",
+          "exists": "false"
+        }
+      ]
+    },
+    "then": {
+      "effect": "deny"
+    }
+  }
+}
