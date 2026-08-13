@@ -1,0 +1,15 @@
+#!/bin/bash
+
+VAULT_NAME="kv-mysql-demo-123"
+
+DB_USER=$(az keyvault secret show \
+  --vault-name $VAULT_NAME \
+  --name mysql-username \
+  --query value -o tsv)
+
+DB_PASS=$(az keyvault secret show \
+  --vault-name $VAULT_NAME \
+  --name mysql-password \
+  --query value -o tsv)
+
+mysql -h 127.0.0.1 -u "$DB_USER" -p"$DB_PASS" companydb -e "SELECT * FROM employees;"

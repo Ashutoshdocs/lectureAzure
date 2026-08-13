@@ -1,0 +1,8 @@
+docker build -t scaledemo:v1 .
+docker run -p 8080:8080 scaledemo:v1
+http://localhost:8080
+
+
+curl http://localhost:8080/hostname     # plain text hostname
+curl http://localhost:8080/instance     # plain text instance id
+curl http://localhost:8080/info         # JSON with all fields
