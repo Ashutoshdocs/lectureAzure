@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Azure Order Management</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef4fb;
+    color: #1f2937;
+}
+
+
+/* ==============================
+   HEADER
+================================ */
+
+.header {
+    background: linear-gradient(
+        135deg,
+        #0078d4,
+        #005a9e
+    );
+
+    color: white;
+
+    padding: 35px 50px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 32px;
+}
+
+.header p {
+    margin: 10px 0 0;
+    font-size: 16px;
+}
+
+.badge {
+    display: inline-block;
+
+    margin-top: 15px;
+    margin-right: 8px;
+
+    padding: 7px 14px;
+
+    border-radius: 20px;
+
+    background: rgba(
+        255,
+        255,
+        255,
+        0.18
+    );
+
+    font-size: 13px;
+}
+
+
+/* ==============================
+   MAIN CONTAINER
+================================ */
+
+.container {
+    max-width: 1000px;
+
+    margin: 35px auto;
+
+    padding: 0 20px;
+}
+
+
+/* ==============================
+   ARCHITECTURE
+================================ */
+
+.architecture {
+
+    background: white;
+
+    padding: 30px;
+
+    border-radius: 15px;
+
+    margin-bottom: 25px;
+
+    text-align: center;
+
+    box-shadow:
+        0 5px 20px
+        rgba(0,0,0,0.07);
+}
+
+.architecture-box {
+
+    display: inline-block;
+
+    padding: 16px 25px;
+
+    margin: 5px;
+
+    border-radius: 10px;
+
+    background: #f1f5f9;
+
+    font-weight: bold;
+}
+
+.arrow {
+
+    font-size: 24px;
+
+    color: #0078d4;
+
+    margin: 0 8px;
+}
+
+.api-url {
+
+    margin-top: 20px;
+
+    padding: 14px;
+
+    background: #e0f2fe;
+
+    color: #075985;
+
+    border-radius: 8px;
+
+    font-family: Consolas, monospace;
+
+    word-break: break-all;
+}
+
+
+/* ==============================
+   PANEL
+================================ */
+
+.panel {
+
+    background: white;
+
+    padding: 30px;
+
+    border-radius: 15px;
+
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 5px 20px
+        rgba(0,0,0,0.07);
+}
+
+.panel h2 {
+
+    margin-top: 0;
+
+    color: #1e293b;
+
+    margin-bottom: 25px;
+}
+
+
+/* ==============================
+   FORM
+================================ */
+
+.form-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(220px, 1fr)
+        );
+
+    gap: 20px;
+}
+
+.form-field {
+
+    display: flex;
+
+    flex-direction: column;
+}
+
+.form-field label {
+
+    font-weight: bold;
+
+    font-size: 14px;
+
+    margin-bottom: 7px;
+}
+
+.form-field input {
+
+    width: 100%;
+
+    padding: 13px;
+
+    border: 1px solid #cbd5e1;
+
+    border-radius: 8px;
+
+    font-size: 15px;
+
+    outline: none;
+}
+
+.form-field input:focus {
+
+    border-color: #0078d4;
+
+    box-shadow:
+        0 0 0 2px
+        rgba(
+            0,
+            120,
+            212,
+            0.15
+        );
+}
+
+
+/* ==============================
+   BUTTON
+================================ */
+
+button {
+
+    margin-top: 25px;
+
+    padding: 14px 25px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background: #16a34a;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+button:hover {
+
+    background: #15803d;
+}
+
+button:disabled {
+
+    background: #94a3b8;
+
+    cursor: not-allowed;
+}
+
+
+/* ==============================
+   STATUS MESSAGE
+================================ */
+
+.message {
+
+    display: none;
+
+    margin-top: 20px;
+
+    padding: 14px;
+
+    border-radius: 8px;
+
+    font-weight: bold;
+}
+
+.success-message {
+
+    background: #dcfce7;
+
+    color: #166534;
+}
+
+.error-message {
+
+    background: #fee2e2;
+
+    color: #991b1b;
+}
+
+
+/* ==============================
+   API RESPONSE
+================================ */
+
+.response {
+
+    background: #0f172a;
+
+    color: #e2e8f0;
+
+    padding: 20px;
+
+    border-radius: 10px;
+
+    min-height: 180px;
+
+    overflow-x: auto;
+
+    white-space: pre-wrap;
+
+    font-family: Consolas, monospace;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+
+/* ==============================
+   FOOTER
+================================ */
+
+.footer {
+
+    text-align: center;
+
+    color: #64748b;
+
+    padding: 20px;
+}
+
+
+/* ==============================
+   MOBILE
+================================ */
+
+@media (max-width: 700px) {
+
+    .header {
+
+        padding: 25px;
+    }
+
+    .header h1 {
+
+        font-size: 25px;
+    }
+
+    .architecture-box {
+
+        display: block;
+
+        margin: 10px 0;
+    }
+
+    .arrow {
+
+        display: block;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================
+     HEADER
+========================================= -->
+
+<div class="header">
+
+    <h1>
+        Azure Order Management
+    </h1>
+
+    <p>
+        Create Order using Azure API Management
+    </p>
+
+    <span class="badge">
+        Azure API Management
+    </span>
+
+    <span class="badge">
+        Azure VM
+    </span>
+
+    <span class="badge">
+        Flask
+    </span>
+
+    <span class="badge">
+        REST API
+    </span>
+
+</div>
+
+
+<div class="container">
+
+
+<!-- =========================================
+     ARCHITECTURE
+========================================= -->
+
+<div class="architecture">
+
+    <div class="architecture-box">
+        Browser
+    </div>
+
+    <span class="arrow">
+        →
+    </span>
+
+    <div class="architecture-box">
+        Azure API Management
+    </div>
+
+    <span class="arrow">
+        →
+    </span>
+
+    <div class="architecture-box">
+        Azure VM
+    </div>
+
+    <span class="arrow">
+        →
+    </span>
+
+    <div class="architecture-box">
+        Flask Order API
+    </div>
+
+
+    <div class="api-url">
+
+        POST
+
+        https://myapimanagementblaze.developer.azure-api.net/orders
+
+    </div>
+
+</div>
+
+
+<!-- =========================================
+     CREATE ORDER
+========================================= -->
+
+<div class="panel">
+
+    <h2>
+        Create Order
+    </h2>
+
+
+    <div class="form-grid">
+
+
+        <!-- CUSTOMER -->
+
+        <div class="form-field">
+
+            <label>
+                Customer
+            </label>
+
+            <input
+                id="customer"
+                type="text"
+                placeholder="Vikram">
+
+        </div>
+
+
+        <!-- PRODUCT -->
+
+        <div class="form-field">
+
+            <label>
+                Product
+            </label>
+
+            <input
+                id="product"
+                type="text"
+                placeholder="Monitor">
+
+        </div>
+
+
+        <!-- QUANTITY -->
+
+        <div class="form-field">
+
+            <label>
+                Quantity
+            </label>
+
+            <input
+                id="quantity"
+                type="number"
+                min="1"
+                value="1">
+
+        </div>
+
+
+        <!-- PRICE -->
+
+        <div class="form-field">
+
+            <label>
+                Price
+            </label>
+
+            <input
+                id="price"
+                type="number"
+                min="0"
+                value="30000">
+
+        </div>
+
+
+    </div>
+
+
+    <!-- POST BUTTON -->
+
+    <button
+        id="createButton"
+        onclick="createOrder()">
+
+        POST - Create Order
+
+    </button>
+
+
+    <!-- SUCCESS -->
+
+    <div
+        id="successMessage"
+        class="message success-message">
+
+    </div>
+
+
+    <!-- ERROR -->
+
+    <div
+        id="errorMessage"
+        class="message error-message">
+
+    </div>
+
+
+</div>
+
+
+<!-- =========================================
+     API RESPONSE
+========================================= -->
+
+<div class="panel">
+
+    <h2>
+        API Response
+    </h2>
+
+
+    <div
+        id="apiResponse"
+        class="response">
+
+Waiting for POST request...
+
+    </div>
+
+</div>
+
+
+</div>
+
+
+<!-- =========================================
+     FOOTER
+========================================= -->
+
+<div class="footer">
+
+    Browser
+    →
+    Azure API Management
+    →
+    Azure VM
+    →
+    Flask
+
+</div>
+
+
+<script>
+
+
+/*
+=========================================================
+APIM ENDPOINT
+=========================================================
+*/
+
+const API_BASE =
+    "https://myapimanagementblaze.azure-api.net/orders";
+
+
+/*
+=========================================================
+CREATE ORDER
+=========================================================
+*/
+
+async function createOrder() {
+
+
+    /*
+    Read values
+    */
+
+    const customer =
+        document
+        .getElementById(
+            "customer"
+        )
+        .value
+        .trim();
+
+
+    const product =
+        document
+        .getElementById(
+            "product"
+        )
+        .value
+        .trim();
+
+
+    const quantity =
+        Number(
+            document
+            .getElementById(
+                "quantity"
+            )
+            .value
+        );
+
+
+    const price =
+        Number(
+            document
+            .getElementById(
+                "price"
+            )
+            .value
+        );
+
+
+    /*
+    Validate
+    */
+
+    if (!customer) {
+
+        showError(
+            "Please enter customer name."
+        );
+
+        return;
+
+    }
+
+
+    if (!product) {
+
+        showError(
+            "Please enter product name."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        !quantity ||
+        quantity < 1
+    ) {
+
+        showError(
+            "Quantity must be at least 1."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        price < 0 ||
+        isNaN(price)
+    ) {
+
+        showError(
+            "Please enter a valid price."
+        );
+
+        return;
+
+    }
+
+
+    /*
+    Create request body
+    */
+
+    const order = {
+
+        customer: customer,
+
+        product: product,
+
+        quantity: quantity,
+
+        price: price
+
+    };
+
+
+    /*
+    Disable button
+    */
+
+    const button =
+        document
+        .getElementById(
+            "createButton"
+        );
+
+
+    button.disabled = true;
+
+    button.textContent =
+        "Creating Order...";
+
+
+    /*
+    Clear old messages
+    */
+
+    document
+        .getElementById(
+            "successMessage"
+        )
+        .style.display =
+        "none";
+
+
+    document
+        .getElementById(
+            "errorMessage"
+        )
+        .style.display =
+        "none";
+
+
+    try {
+
+
+        /*
+        POST to APIM
+        */
+
+        const response =
+            await fetch(
+                API_BASE,
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify(
+                            order
+                        )
+
+                }
+            );
+
+
+        /*
+        Read response
+        */
+
+        const text =
+            await response.text();
+
+
+        /*
+        Parse JSON
+        */
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(
+                    text
+                );
+
+        }
+
+        catch {
+
+            /*
+            Don't expose HTML
+            responses to the user.
+            */
+
+            showError(
+                "API returned an unexpected response."
+            );
+
+            return;
+
+        }
+
+
+        /*
+        Show API response
+        */
+
+        document
+            .getElementById(
+                "apiResponse"
+            )
+            .textContent =
+            JSON.stringify(
+                data,
+                null,
+                2
+            );
+
+
+        /*
+        HTTP error
+        */
+
+        if (!response.ok) {
+
+            showError(
+                data.message ||
+                "Order creation failed."
+            );
+
+            return;
+
+        }
+
+
+        /*
+        Success
+        */
+
+        showSuccess(
+            "Order created successfully."
+        );
+
+
+        /*
+        Clear form
+        */
+
+        document
+            .getElementById(
+                "customer"
+            )
+            .value =
+            "";
+
+
+        document
+            .getElementById(
+                "product"
+            )
+            .value =
+            "";
+
+
+        document
+            .getElementById(
+                "quantity"
+            )
+            .value =
+            "1";
+
+
+        document
+            .getElementById(
+                "price"
+            )
+            .value =
+            "30000";
+
+
+    }
+
+    catch (error) {
+
+
+        console.error(
+            "POST error:",
+            error
+        );
+
+
+        showError(
+            "Unable to connect to Azure API Management."
+        );
+
+    }
+
+
+    finally {
+
+
+        /*
+        Enable button
+        */
+
+        button.disabled =
+            false;
+
+
+        button.textContent =
+            "POST - Create Order";
+
+    }
+
+}
+
+
+/*
+=========================================================
+SUCCESS MESSAGE
+=========================================================
+*/
+
+function showSuccess(message) {
+
+    const element =
+        document
+        .getElementById(
+            "successMessage"
+        );
+
+
+    element.textContent =
+        message;
+
+
+    element.style.display =
+        "block";
+
+
+    document
+        .getElementById(
+            "errorMessage"
+        )
+        .style.display =
+        "none";
+
+}
+
+
+/*
+=========================================================
+ERROR MESSAGE
+=========================================================
+*/
+
+function showError(message) {
+
+    const element =
+        document
+        .getElementById(
+            "errorMessage"
+        );
+
+
+    element.textContent =
+        message;
+
+
+    element.style.display =
+        "block";
+
+
+    document
+        .getElementById(
+            "successMessage"
+        )
+        .style.display =
+        "none";
+
+}
+
+</script>
+
+
+</body>
+
+</html>
