@@ -1,0 +1,36 @@
+<policies>
+    <inbound>
+        <base />
+
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>http://4.240.98.197/:8080</origin>
+            </allowed-origins>
+
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>PUT</method>
+                <method>DELETE</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+
+            <allowed-headers>
+                <header>Content-Type</header>
+            </allowed-headers>
+        </cors>
+
+    </inbound>
+
+    <backend>
+        <base />
+    </backend>
+
+    <outbound>
+        <base />
+    </outbound>
+
+    <on-error>
+        <base />
+    </on-error>
+</policies>
