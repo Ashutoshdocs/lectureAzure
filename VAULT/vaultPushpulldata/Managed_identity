@@ -1,4 +1,0 @@
-#script for end to end setup
-secrets :
-userName = demouser
-password =Pass@12345

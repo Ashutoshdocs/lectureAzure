@@ -1,0 +1,13 @@
+$RG="RG-WebApp"
+$LOCATION = "centralus"
+$ACR="myacrdemoblaze"
+
+az group create --name $RG --location $LOCATION
+
+az acr create --name $ACR  --resource-group $RG --sku Basic --admin-enabled true
+
+az acr login -n $ACR
+
+docker tag scaledemo:v1 myacrdemoblaze.azurecr.io/scaledemo:v1
+
+docker push myacrdemoblaze.azurecr.io/scaledemo:v1
