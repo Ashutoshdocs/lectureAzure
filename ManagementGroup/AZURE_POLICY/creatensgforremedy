@@ -1,0 +1,6 @@
+az group create --name remedyrg --location centralindia
+az network nsg create --resource-group remedyrg --name NSG-01
+az network nsg create --resource-group remedyrg --name NSG-02
+az network nsg create --resource-group remedyrg --name NSG-03
+az network nsg create --resource-group remedyrg --name NSG-04
+az network nsg create --resource-group remedyrg --name NSG-05
