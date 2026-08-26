@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Sign in · Secure Employee Portal{% endblock %}
+{% block body_class %}gate{% endblock %}
+
+{% block content %}
+<main class="gate-wrap">
+  <div class="gate-card">
+    <div class="gate-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3Z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+    </div>
+    <p class="gate-eyebrow">Contoso Corp · Internal</p>
+    <h1 class="gate-title">Secure Employee Portal</h1>
+    <p class="gate-sub">
+      Access is restricted to assigned members of your organization.
+      Sign in with your work account to continue.
+    </p>
+
+    <a class="btn-ms" href="{{ url_for('login') }}">
+      <svg viewBox="0 0 21 21" width="18" height="18" aria-hidden="true">
+        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+      </svg>
+      Sign in with Microsoft
+    </a>
+
+    <ul class="gate-facts">
+      <li>Single sign-on via Microsoft Entra ID</li>
+      <li>Assignment required — unassigned users are blocked</li>
+      <li>Profile &amp; roles read live from Microsoft Graph</li>
+    </ul>
+  </div>
+  <p class="gate-foot">Protected by Microsoft Entra ID</p>
+</main>
+{% endblock %}

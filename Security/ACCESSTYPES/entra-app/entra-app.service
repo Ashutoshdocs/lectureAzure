@@ -1,0 +1,23 @@
+# /etc/systemd/system/entra-app.service
+# Runs the portal under gunicorn and loads secrets from .env.
+# Edit User and paths to match your VM, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now entra-app
+
+[Unit]
+Description=Secure Employee Portal (Flask + gunicorn)
+After=network.target
+
+[Service]
+User=azureuser
+WorkingDirectory=/home/azureuser/entra-app
+EnvironmentFile=/home/azureuser/entra-app/.env
+ExecStart=/home/azureuser/entra-app/venv/bin/gunicorn \
+    --workers 3 \
+    --bind 127.0.0.1:5000 \
+    app:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
