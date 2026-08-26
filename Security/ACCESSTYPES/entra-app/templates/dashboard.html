@@ -40,8 +40,45 @@
     </span>
   </section>
 
+  <!-- ============================ TASK BOARD ============================ -->
+  <section class="card wide taskboard" id="taskboard"
+           data-summary='{{ summary | tojson }}'>
+    <div class="tb-head">
+      <div>
+        <h2 class="card-title">My tasks</h2>
+        <p class="card-note">Assigned to you — mark them done as you go.</p>
+      </div>
+      <div class="tb-stats">
+        <span class="stat"><b id="stat-remaining">{{ summary.remaining }}</b> remaining</span>
+        <span class="stat done"><b id="stat-done">{{ summary.done }}</b> completed</span>
+        <span class="stat total"><b id="stat-total">{{ summary.total }}</b> total</span>
+      </div>
+    </div>
+
+    <div class="progress" role="progressbar" aria-label="Task completion"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ summary.percent }}">
+      <div class="progress-bar" id="progress-bar" style="width: {{ summary.percent }}%"></div>
+    </div>
+    <p class="progress-label"><span id="progress-pct">{{ summary.percent }}</span>% complete</p>
+
+    <div class="tb-add">
+      <input type="text" id="new-task" class="tb-input" maxlength="200"
+             placeholder="Add a task and press Enter…" autocomplete="off">
+      <button class="btn-solid" id="add-btn">Add task</button>
+    </div>
+
+    <div class="tb-filters" role="tablist">
+      <button class="filter active" data-filter="all" role="tab">All</button>
+      <button class="filter" data-filter="active" role="tab">Remaining</button>
+      <button class="filter" data-filter="done" role="tab">Completed</button>
+    </div>
+
+    <ul class="task-list" id="task-list" aria-live="polite"></ul>
+    <p class="tb-empty" id="tb-empty" hidden>Nothing here yet.</p>
+  </section>
+
+  <!-- ============================ INFO CARDS ============================ -->
   <div class="grid">
-    <!-- Profile from Microsoft Graph -->
     <article class="card">
       <h2 class="card-title">Profile</h2>
       <p class="card-note">Read live from <code>/me</code> on Microsoft Graph.</p>
@@ -55,7 +92,6 @@
       </dl>
     </article>
 
-    <!-- App roles -->
     <article class="card">
       <h2 class="card-title">App roles</h2>
       <p class="card-note">From the <code>roles</code> claim in your ID token.</p>
@@ -72,39 +108,145 @@
       {% endif %}
     </article>
 
-    <!-- Live API demo -->
     <article class="card">
       <h2 class="card-title">Protected API</h2>
       <p class="card-note">Calls a token-protected endpoint on this server.</p>
       <div class="api-actions">
-        <button class="btn-solid" data-endpoint="{{ url_for('api_me') }}">GET /api/me</button>
+        <button class="btn-solid alt" data-endpoint="{{ url_for('api_me') }}">GET /api/me</button>
         <button class="btn-solid alt" data-endpoint="{{ url_for('api_groups') }}">GET /api/groups</button>
       </div>
       <pre id="api-out" class="api-out" aria-live="polite">Click a button to call the API…</pre>
     </article>
 
-    <!-- Raw token claims -->
     <article class="card wide">
       <h2 class="card-title">ID token claims</h2>
-      <p class="card-note">The verified claims Entra issued for this session — useful for debugging SSO.</p>
+      <p class="card-note">The verified claims Entra issued for this session.</p>
       <pre class="claims">{{ claims_pretty }}</pre>
     </article>
   </div>
 </main>
 
 <script>
-  document.querySelectorAll("[data-endpoint]").forEach(function (btn) {
-    btn.addEventListener("click", async function () {
-      var out = document.getElementById("api-out");
-      out.textContent = "Loading…";
-      try {
-        var res = await fetch(btn.dataset.endpoint, { headers: { "Accept": "application/json" } });
-        var data = await res.json();
-        out.textContent = "HTTP " + res.status + "\n\n" + JSON.stringify(data, null, 2);
-      } catch (e) {
-        out.textContent = "Request failed: " + e.message;
-      }
-    });
+// ------------------------- Task board logic -------------------------
+const listEl   = document.getElementById("task-list");
+const emptyEl  = document.getElementById("tb-empty");
+const inputEl  = document.getElementById("new-task");
+const addBtn   = document.getElementById("add-btn");
+let currentFilter = "all";
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+function applySummary(s) {
+  document.getElementById("stat-remaining").textContent = s.remaining;
+  document.getElementById("stat-done").textContent      = s.done;
+  document.getElementById("stat-total").textContent     = s.total;
+  document.getElementById("progress-bar").style.width   = s.percent + "%";
+  document.getElementById("progress-pct").textContent   = s.percent;
+  document.querySelector(".progress").setAttribute("aria-valuenow", s.percent);
+}
+
+function taskRow(t) {
+  const li = document.createElement("li");
+  li.className = "task" + (t.done ? " done" : "");
+  li.dataset.id = t.id;
+  li.dataset.done = t.done;
+  li.innerHTML = `
+    <label class="task-check">
+      <input type="checkbox" ${t.done ? "checked" : ""}>
+      <span class="checkmark" aria-hidden="true"></span>
+    </label>
+    <span class="task-title">${esc(t.title)}</span>
+    <button class="task-del" title="Delete" aria-label="Delete task">&times;</button>
+  `;
+  li.querySelector("input").addEventListener("change", () => toggleTask(t.id));
+  li.querySelector(".task-del").addEventListener("click", () => deleteTask(t.id));
+  return li;
+}
+
+function render(tasks) {
+  listEl.innerHTML = "";
+  const filtered = tasks.filter(t =>
+    currentFilter === "all" ? true :
+    currentFilter === "done" ? t.done : !t.done
+  );
+  filtered.forEach(t => listEl.appendChild(taskRow(t)));
+  emptyEl.hidden = filtered.length !== 0;
+}
+
+async function api(url, opts) {
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    ...opts,
   });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+async function loadTasks() {
+  try {
+    const data = await api("/api/tasks");
+    render(data.tasks);
+    applySummary(data.summary);
+  } catch (e) { console.error(e); }
+}
+
+async function addTask() {
+  const title = inputEl.value.trim();
+  if (!title) return;
+  inputEl.value = "";
+  try {
+    await api("/api/tasks", { method: "POST", body: JSON.stringify({ title }) });
+    await loadTasks();
+    inputEl.focus();
+  } catch (e) { console.error(e); }
+}
+
+async function toggleTask(id) {
+  try {
+    const data = await api("/api/tasks/" + id, { method: "PATCH", body: "{}" });
+    applySummary(data.summary);
+    await loadTasks();
+  } catch (e) { console.error(e); }
+}
+
+async function deleteTask(id) {
+  try {
+    const data = await api("/api/tasks/" + id, { method: "DELETE" });
+    applySummary(data.summary);
+    await loadTasks();
+  } catch (e) { console.error(e); }
+}
+
+addBtn.addEventListener("click", addTask);
+inputEl.addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+document.querySelectorAll(".filter").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    loadTasks();
+  });
+});
+
+// Seed summary from server-rendered value, then hydrate the list.
+applySummary(JSON.parse(document.getElementById("taskboard").dataset.summary));
+loadTasks();
+
+// ------------------------- Protected API demo -------------------------
+document.querySelectorAll("[data-endpoint]").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const out = document.getElementById("api-out");
+    out.textContent = "Loading…";
+    try {
+      const res = await fetch(btn.dataset.endpoint, { headers: { "Accept": "application/json" } });
+      const data = await res.json();
+      out.textContent = "HTTP " + res.status + "\n\n" + JSON.stringify(data, null, 2);
+    } catch (e) { out.textContent = "Request failed: " + e.message; }
+  });
+});
 </script>
 {% endblock %}
