@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Secure Employee Portal{% endblock %}
+{% block body_class %}app{% endblock %}
+
+{% macro initials(name) -%}
+  {%- set parts = (name or 'U').split() -%}
+  {{ (parts[0][0] if parts else 'U')|upper }}{{ (parts[1][0] if parts|length > 1 else '')|upper }}
+{%- endmacro %}
+
+{% block content %}
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+           stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3Z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+    </span>
+    <span class="brand-name">Secure Employee Portal</span>
+  </div>
+  <div class="topbar-right">
+    <span class="whoami">{{ profile.displayName or claims.name or 'Signed in' }}</span>
+    <a class="btn-ghost" href="{{ url_for('logout') }}">Sign out</a>
+  </div>
+</header>
+
+<main class="page">
+  <section class="hero">
+    <div class="avatar" aria-hidden="true">{{ initials(profile.displayName or claims.name) }}</div>
+    <div>
+      <p class="hero-eyebrow">Signed in successfully</p>
+      <h1 class="hero-name">{{ profile.displayName or claims.name or 'Employee' }}</h1>
+      <p class="hero-meta">
+        {{ profile.jobTitle or 'Team member' }}{% if profile.department %} · {{ profile.department }}{% endif %}
+      </p>
+    </div>
+    <span class="status-pill {{ 'ok' if graph_ok else 'warn' }}">
+      {{ 'Graph connected' if graph_ok else 'Graph unavailable' }}
+    </span>
+  </section>
+
+  <div class="grid">
+    <!-- Profile from Microsoft Graph -->
+    <article class="card">
+      <h2 class="card-title">Profile</h2>
+      <p class="card-note">Read live from <code>/me</code> on Microsoft Graph.</p>
+      <dl class="kv">
+        <div><dt>Email</dt><dd>{{ profile.mail or profile.userPrincipalName or '—' }}</dd></div>
+        <div><dt>Job title</dt><dd>{{ profile.jobTitle or '—' }}</dd></div>
+        <div><dt>Department</dt><dd>{{ profile.department or '—' }}</dd></div>
+        <div><dt>Office</dt><dd>{{ profile.officeLocation or '—' }}</dd></div>
+        <div><dt>Mobile</dt><dd>{{ profile.mobilePhone or '—' }}</dd></div>
+        <div><dt>Language</dt><dd>{{ profile.preferredLanguage or '—' }}</dd></div>
+      </dl>
+    </article>
+
+    <!-- App roles -->
+    <article class="card">
+      <h2 class="card-title">App roles</h2>
+      <p class="card-note">From the <code>roles</code> claim in your ID token.</p>
+      {% if roles %}
+        <ul class="chips">
+          {% for r in roles %}<li class="chip">{{ r }}</li>{% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty">
+          <p>No app roles assigned.</p>
+          <p class="empty-hint">Define roles under <em>App registration → App roles</em>,
+             then assign them in <em>Enterprise applications → Users and groups</em>.</p>
+        </div>
+      {% endif %}
+    </article>
+
+    <!-- Live API demo -->
+    <article class="card">
+      <h2 class="card-title">Protected API</h2>
+      <p class="card-note">Calls a token-protected endpoint on this server.</p>
+      <div class="api-actions">
+        <button class="btn-solid" data-endpoint="{{ url_for('api_me') }}">GET /api/me</button>
+        <button class="btn-solid alt" data-endpoint="{{ url_for('api_groups') }}">GET /api/groups</button>
+      </div>
+      <pre id="api-out" class="api-out" aria-live="polite">Click a button to call the API…</pre>
+    </article>
+
+    <!-- Raw token claims -->
+    <article class="card wide">
+      <h2 class="card-title">ID token claims</h2>
+      <p class="card-note">The verified claims Entra issued for this session — useful for debugging SSO.</p>
+      <pre class="claims">{{ claims_pretty }}</pre>
+    </article>
+  </div>
+</main>
+
+<script>
+  document.querySelectorAll("[data-endpoint]").forEach(function (btn) {
+    btn.addEventListener("click", async function () {
+      var out = document.getElementById("api-out");
+      out.textContent = "Loading…";
+      try {
+        var res = await fetch(btn.dataset.endpoint, { headers: { "Accept": "application/json" } });
+        var data = await res.json();
+        out.textContent = "HTTP " + res.status + "\n\n" + JSON.stringify(data, null, 2);
+      } catch (e) {
+        out.textContent = "Request failed: " + e.message;
+      }
+    });
+  });
+</script>
+{% endblock %}
