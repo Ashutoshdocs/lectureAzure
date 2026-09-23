@@ -1,7 +1,0 @@
-{
-  "lifetimeActions": [
-    { "trigger": { "timeAfterCreate": "P30D" }, "action": { "type": "Rotate" } },
-    { "trigger": { "timeBeforeExpiry": "P7D" }, "action": { "type": "Notify" } }
-  ],
-  "attributes": { "expiryTime": "P90D" }
-}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "centralindia"
+    },
+    "vmName": {
+      "value": "demo-vm"
+    },
+    "vnetName": {
+      "value": "demo-vm-vnet"
+    },
+    "subnetName": {
+      "value": "default"
+    },
+    "vnetAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "subnetAddressPrefix": {
+      "value": "10.0.0.0/24"
+    },
+    "nsgName": {
+      "value": "demo-vm-nsg"
+    },
+    "publicIpName": {
+      "value": "demo-vm-pip"
+    },
+    "nicName": {
+      "value": "demo-vm-nic"
+    },
+    "vmSize": {
+      "value": "Standard_B2s"
+    },
+    "adminUsername": {
+      "value": "azureadmin"
+    },
+    "adminSshPublicKey": {
+      "value": "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY"
+    },
+    "imagePublisher": {
+      "value": "Canonical"
+    },
+    "imageOffer": {
+      "value": "ubuntu-24_04-lts"
+    },
+    "imageSku": {
+      "value": "server"
+    },
+    "imageVersion": {
+      "value": "latest"
+    },
+    "sshRulePriority": {
+      "value": 1000
+    },
+    "sshSourceAddressPrefix": {
+      "value": "*"
+    },
+    "createPublicIp": {
+      "value": true
+    }
+  }
+}
