@@ -1,5 +1,0 @@
-.demo.env
-__pycache__/
-*.pyc
-.venv/
-rotator/local.settings.json
