@@ -1,0 +1,122 @@
+#cloud-config
+#
+# Demo: Deploy a beautiful Nginx webpage using cloud-init
+# Designed to be re-run on an ALREADY RUNNING Ubuntu VM.
+#
+# The page will be available at:
+#   http://<VM-IP>/
+#
+# IMPORTANT:
+# This file is intended to be executed explicitly with cloud-init on an
+# existing VM. See README.md for the commands.
+
+package_update: true
+packages:
+  - nginx
+
+write_files:
+  - path: /var/www/html/index.html
+    owner: root:root
+    permissions: '0644'
+    content: |
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cloud-Init Demo</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, Helvetica, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a, #0ea5e9);
+            color: white;
+            padding: 24px;
+          }
+          .card {
+            width: min(900px, 100%);
+            padding: 55px 45px;
+            border-radius: 28px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+            backdrop-filter: blur(12px);
+            text-align: center;
+          }
+          .badge {
+            display: inline-block;
+            padding: 9px 18px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.18);
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-bottom: 22px;
+          }
+          h1 {
+            font-size: clamp(38px, 7vw, 72px);
+            margin-bottom: 18px;
+          }
+          h1 span { color: #67e8f9; }
+          p {
+            font-size: 21px;
+            line-height: 1.7;
+            color: #e0f2fe;
+            margin: 12px auto;
+            max-width: 720px;
+          }
+          .flow {
+            margin: 32px auto 0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
+          .step {
+            padding: 12px 18px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.13);
+            border: 1px solid rgba(255,255,255,0.18);
+            font-weight: bold;
+          }
+          .footer {
+            margin-top: 34px;
+            font-size: 14px;
+            color: #bae6fd;
+          }
+        </style>
+      </head>
+      <body>
+        <main class="card">
+          <div class="badge">☁ CLOUD-INIT DEMO</div>
+          <h1>Page deployed <span>via Cloud-Init</span></h1>
+          <p>
+            This Nginx web server and webpage were configured automatically
+            using a cloud-init configuration on an already running VM.
+          </p>
+
+          <div class="flow">
+            <div class="step">VM</div>
+            <div class="step">→</div>
+            <div class="step">Cloud-Init</div>
+            <div class="step">→</div>
+            <div class="step">Nginx</div>
+            <div class="step">→</div>
+            <div class="step">Web Page</div>
+          </div>
+
+          <div class="footer">
+            Demo status: ✓ Nginx installed &nbsp; | &nbsp; ✓ Website deployed
+          </div>
+        </main>
+      </body>
+      </html>
+
+runcmd:
+  - systemctl enable nginx
+  - systemctl restart nginx
+  - systemctl is-active --quiet nginx || systemctl status nginx --no-pager
+  - echo "Cloud-init Nginx demo completed successfully." > /var/log/cloud-init-nginx-demo.log
