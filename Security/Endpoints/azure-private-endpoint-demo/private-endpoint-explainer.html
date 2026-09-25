@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Private Endpoint — Storage Account Demo</title>
+<style>
+    :root {
+        --blue: #0078d4;
+        --dark: #12304a;
+        --cyan: #00a4ef;
+        --green: #107c10;
+        --orange: #ff8c00;
+        --purple: #5c2d91;
+        --light: #f4f8fc;
+        --border: #d9e6f2;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: linear-gradient(135deg, #eef7ff, #ffffff 45%, #f3fbff);
+        color: #17324d;
+        line-height: 1.65;
+    }
+    header {
+        background: linear-gradient(135deg, #0078d4, #005a9e);
+        color: white;
+        padding: 55px 7%;
+        position: relative;
+        overflow: hidden;
+    }
+    header:after {
+        content: "";
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        border: 70px solid rgba(255,255,255,.08);
+        border-radius: 50%;
+        right: -80px;
+        top: -170px;
+    }
+    header h1 {
+        font-size: clamp(34px, 5vw, 62px);
+        margin: 0 0 10px;
+        letter-spacing: -1px;
+    }
+    header p {
+        font-size: 21px;
+        max-width: 850px;
+        opacity: .95;
+        margin: 0;
+    }
+    main { max-width: 1180px; margin: auto; padding: 35px 22px 70px; }
+    section {
+        background: white;
+        margin: 26px 0;
+        padding: 30px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 30px rgba(20,70,110,.07);
+    }
+    h2 { color: var(--blue); margin-top: 0; font-size: 29px; }
+    h3 { color: var(--dark); }
+    .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 25px;
+    }
+    .card {
+        padding: 22px;
+        border-radius: 15px;
+        background: var(--light);
+        border-left: 5px solid var(--blue);
+    }
+    .card strong { display:block; color: var(--dark); font-size: 18px; }
+    .diagram {
+        background: #0e2538;
+        color: #dff3ff;
+        padding: 25px;
+        border-radius: 16px;
+        overflow-x: auto;
+        font-family: Consolas, monospace;
+        white-space: pre;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+    .flow {
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex-wrap:wrap;
+        gap:12px;
+        margin:25px 0;
+    }
+    .node {
+        min-width:160px;
+        text-align:center;
+        padding:18px;
+        border-radius:15px;
+        background:white;
+        border:2px solid var(--blue);
+        box-shadow:0 5px 15px rgba(0,0,0,.07);
+        font-weight:700;
+    }
+    .arrow { font-size:30px; color:var(--blue); }
+    .note {
+        border-left: 5px solid var(--orange);
+        background: #fff8ed;
+        padding: 17px 20px;
+        border-radius: 10px;
+        margin: 18px 0;
+    }
+    .success {
+        border-left: 5px solid var(--green);
+        background: #effbea;
+        padding: 17px 20px;
+        border-radius: 10px;
+    }
+    .important {
+        color: #9a3b00;
+        font-weight: 700;
+    }
+    table {
+        width:100%;
+        border-collapse:collapse;
+        margin:18px 0;
+        background:white;
+    }
+    th, td {
+        border:1px solid var(--border);
+        padding:13px;
+        text-align:left;
+        vertical-align:top;
+    }
+    th { background:#eaf5ff; color:var(--dark); }
+    code {
+        background:#edf4fa;
+        padding:2px 6px;
+        border-radius:5px;
+        color:#7a2e00;
+    }
+    .pill {
+        display:inline-block;
+        padding:5px 12px;
+        margin:3px;
+        border-radius:20px;
+        background:#e7f3ff;
+        color:#005a9e;
+        font-weight:600;
+    }
+    footer {
+        text-align:center;
+        padding:35px;
+        color:#59758e;
+        font-size:14px;
+    }
+    @media(max-width:650px) {
+        section { padding:21px; }
+        .arrow { transform:rotate(90deg); }
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Azure Private Endpoint</h1>
+    <p>Storage Account + VM + Private Endpoint — a visual guide to private access, DNS and Azure Private Link.</p>
+</header>
+
+<main>
+
+<section>
+    <h2>🎯 What are we proving?</h2>
+    <div class="hero-grid">
+        <div class="card"><strong>Private IP</strong>The Private Endpoint receives a private IP from the VNet.</div>
+        <div class="card"><strong>Private Access</strong>The VM can access Storage without depending on the Storage public endpoint.</div>
+        <div class="card"><strong>DNS</strong>The normal Storage hostname can resolve to the private endpoint.</div>
+        <div class="card"><strong>Private Link</strong>Azure provides the private service connectivity behind the endpoint.</div>
+    </div>
+</section>
+
+<section>
+    <h2>🏗️ Architecture</h2>
+    <div class="diagram">
++---------------------------------------------------------------+
+|                         AZURE                                 |
+|                                                               |
+|  +---------------------- VNet -----------------------------+ |
+|  |                                                         | |
+|  |   +-------------+       +---------------------------+   | |
+|  |   |     VM      |       |    PRIVATE ENDPOINT       |   | |
+|  |   | 10.0.1.x    | ----> |    10.0.2.4              |   | |
+|  |   +-------------+       +-------------+-------------+   | |
+|  |                                         |                 | |
+|  +-----------------------------------------|-----------------+ |
+|                                            |                   |
+|                                  Azure Private Link           |
+|                                            |                   |
+|                                            v                   |
+|                                  +-------------------+         |
+|                                  | Azure Storage     |         |
+|                                  | Blob Service      |         |
+|                                  +-------------------+         |
++---------------------------------------------------------------+
+    </div>
+</section>
+
+<section>
+    <h2>🔐 What is a Private Endpoint?</h2>
+    <p>A <b>Private Endpoint</b> is a network interface placed in your Azure Virtual Network that provides a private IP address for accessing an Azure service that supports Azure Private Link.</p>
+
+    <div class="note">
+        <b>Important:</b> The private IP belongs to the <b>Private Endpoint network interface</b>. It is not a new NIC attached to the Storage Account.
+    </div>
+
+    <p>For a Storage Account, the endpoint can target a specific sub-resource such as the <code>blob</code> service.</p>
+
+    <div class="flow">
+        <div class="node">VM<br><small>Client</small></div>
+        <div class="arrow">→</div>
+        <div class="node">Private IP<br><small>10.0.2.4</small></div>
+        <div class="arrow">→</div>
+        <div class="node">Private Endpoint<br><small>Entry point</small></div>
+        <div class="arrow">→</div>
+        <div class="node">Storage<br><small>Blob service</small></div>
+    </div>
+</section>
+
+<section>
+    <h2>🌐 Public Endpoint vs Private Endpoint</h2>
+    <table>
+        <tr><th>Public Endpoint</th><th>Private Endpoint</th></tr>
+        <tr>
+            <td>Service is reached through its public endpoint.</td>
+            <td>Client reaches a private IP associated with the Private Endpoint.</td>
+        </tr>
+        <tr>
+            <td>Example: Storage public hostname.</td>
+            <td>Example: Storage hostname resolves privately through Private DNS.</td>
+        </tr>
+        <tr>
+            <td>Public network access can be controlled by service settings and network rules.</td>
+            <td>Private connectivity can be used and public access can subsequently be disabled.</td>
+        </tr>
+    </table>
+</section>
+
+<section>
+    <h2>🧠 How the traffic actually flows</h2>
+    <p>Suppose the VM wants to access:</p>
+    <p><code>mystorageaccount.blob.core.windows.net</code></p>
+
+    <div class="flow">
+        <div class="node">Application<br>on VM</div>
+        <div class="arrow">→</div>
+        <div class="node">DNS Lookup</div>
+        <div class="arrow">→</div>
+        <div class="node">Private IP</div>
+        <div class="arrow">→</div>
+        <div class="node">Private Endpoint</div>
+        <div class="arrow">→</div>
+        <div class="node">Storage</div>
+    </div>
+
+    <div class="success">
+        The application can continue using the Storage hostname. It does not need to hard-code the Private Endpoint IP.
+    </div>
+</section>
+
+<section>
+    <h2>📛 Why DNS is so important</h2>
+    <p>Private Endpoint connectivity is closely tied to DNS. The goal is normally to let applications continue using the familiar service hostname while DNS returns the private endpoint address from inside the VNet.</p>
+
+    <div class="diagram">
+Application
+    |
+    | mystorageaccount.blob.core.windows.net
+    v
+DNS resolution
+    |
+    v
+Private DNS configuration
+    |
+    v
+Private IP of Private Endpoint
+    |
+    v
+10.0.2.4
+    |
+    v
+Private Endpoint
+    |
+    v
+Azure Storage
+    </div>
+
+    <p>For Blob Storage, the private DNS zone commonly used is:</p>
+    <p><code>privatelink.blob.core.windows.net</code></p>
+</section>
+
+<section>
+    <h2>🔗 Private Endpoint vs Private Link Service</h2>
+
+    <table>
+        <tr><th>Private Endpoint</th><th>Private Link Service</th></tr>
+        <tr>
+            <td>Consumer-side private entry point.</td>
+            <td>Provider-side mechanism for publishing a service privately.</td>
+        </tr>
+        <tr>
+            <td>Gets a private IP in the consumer VNet.</td>
+            <td>Usually fronts a provider service through an Azure Load Balancer.</td>
+        </tr>
+        <tr>
+            <td>Used to privately consume supported Azure or Private Link-enabled services.</td>
+            <td>Used when a provider wants to expose its own service through Private Link.</td>
+        </tr>
+    </table>
+
+    <div class="note">
+        <b>For this Storage Account demo:</b> You create the Private Endpoint. You do not create your own Private Link Service for Azure Storage.
+    </div>
+
+    <div class="diagram">
+Consumer VNet                         Provider / Azure service
+
++------------------+                  +----------------------+
+|                  |                  |                      |
+| Private Endpoint | =================> Azure Storage       |
+| private IP       |   Private Link   |                      |
+|                  |                  |                      |
++------------------+                  +----------------------+
+    </div>
+</section>
+
+<section>
+    <h2>🧪 Demo sequence</h2>
+
+    <h3>1. Deploy the VM</h3>
+    <p>Place a VM in a VNet. The VM will be the client used to test Storage connectivity.</p>
+
+    <h3>2. Create the Storage Account</h3>
+    <p>Create a Storage Account and enable the Blob service. Initially, keep the network configuration suitable for the first connectivity test.</p>
+
+    <h3>3. Test public access</h3>
+    <p>From the VM, verify access to the Storage Account and record the DNS behavior.</p>
+
+    <h3>4. Create the Private Endpoint</h3>
+    <p>Create a Private Endpoint for the Storage Account and select the Blob sub-resource.</p>
+
+    <h3>5. Check the assigned private IP</h3>
+    <p>Open the Private Endpoint and identify its network interface and private IP address.</p>
+
+    <h3>6. Configure Private DNS</h3>
+    <p>Configure the appropriate Private DNS Zone and link it to the VNet.</p>
+
+    <h3>7. Test DNS from the VM</h3>
+    <p>Verify that the Storage hostname resolves to the Private Endpoint private IP from inside the VNet.</p>
+
+    <h3>8. Test Storage connectivity</h3>
+    <p>Verify that the VM can access the Blob service through the private path.</p>
+
+    <h3>9. Disable public access</h3>
+    <p>After private connectivity is confirmed, disable public network access for the Storage Account.</p>
+
+    <h3>10. Test again</h3>
+    <p>The VM should continue accessing the Storage Account through the Private Endpoint.</p>
+
+    <div class="success">
+        <b>Proof:</b> If the VM continues to access Storage after public network access has been disabled, while DNS resolves the service through the Private Endpoint, the lab demonstrates private connectivity.
+    </div>
+</section>
+
+<section>
+    <h2>🔍 What should you capture?</h2>
+    <div class="hero-grid">
+        <div class="card"><strong>VM</strong>VNet, subnet and VM private IP.</div>
+        <div class="card"><strong>Storage</strong>Storage Account and network configuration.</div>
+        <div class="card"><strong>Endpoint</strong>Private Endpoint, subnet and private IP.</div>
+        <div class="card"><strong>DNS</strong>Private DNS zone and hostname resolution.</div>
+        <div class="card"><strong>Proof</strong>Successful access after public access is disabled.</div>
+    </div>
+</section>
+
+<section>
+    <h2>💡 The most important concept</h2>
+    <div class="note">
+        <b>The Private Endpoint is not the Storage Account.</b><br>
+        It is a private network interface in your VNet that provides a private entry point to the Storage service.
+    </div>
+
+    <div class="diagram">
+                    YOUR VNET
+                       |
+                       |
+                     VM
+                       |
+                       | private network traffic
+                       v
+             +--------------------+
+             | Private Endpoint   |
+             |                    |
+             | Private IP         |
+             | 10.0.2.4           |
+             +---------+----------+
+                       |
+                       | Azure Private Link
+                       v
+             +--------------------+
+             | Azure Storage      |
+             | Blob Service       |
+             +--------------------+
+    </div>
+</section>
+
+<section>
+    <h2>🎓 One-minute explanation</h2>
+    <p>
+        "A Private Endpoint gives an Azure service a private entry point inside my VNet.
+        Azure creates a network interface for that endpoint and assigns it a private IP.
+        My VM resolves the Storage Account hostname to that private IP through Private DNS.
+        The VM then connects to the Private Endpoint, and Azure Private Link carries that
+        connection to the Storage service. I do not need to create a Private Link Service
+        for Azure Storage because Storage is already an Azure service that supports Private Link."
+    </p>
+</section>
+
+</main>
+
+<footer>
+    Azure Networking Practical • Storage Account + VM + Private Endpoint
+</footer>
+
+</body>
+</html>
