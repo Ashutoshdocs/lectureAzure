@@ -1,8 +1,0 @@
-{
-  "name": "vnet-integration-caller",
-  "version": "1.0.0",
-  "description": "Demo 5: tries to reach a private IP inside the VNet and reports the result",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" }
-}
