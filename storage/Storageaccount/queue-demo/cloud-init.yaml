@@ -1,0 +1,11 @@
+#cloud-config
+# Prepares the worker VM: Python venv with the Azure SDKs.
+package_update: true
+packages:
+  - python3-venv
+  - python3-pip
+runcmd:
+  - mkdir -p /opt/queuedemo
+  - python3 -m venv /opt/queuedemo/venv
+  - /opt/queuedemo/venv/bin/pip install --quiet azure-storage-queue azure-identity
+  - chown -R azureuser:azureuser /opt/queuedemo
