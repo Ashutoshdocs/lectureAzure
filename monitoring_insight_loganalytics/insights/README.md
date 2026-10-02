@@ -249,18 +249,32 @@ def health():
 ```
 
 ### 5.2 Run it as a systemd service
-
 ```bash
-sudo tee /etc/systemd/system/demoapp.service > /dev/null <<'EOF'
+IKEY="47c84b46-bf59-48a1-afde-1d334accf31f"
+APPID="e753c910-52de-4c56-8721-e7f2c4748896"
+INGEST="https://centralindia-0.in.applicationinsights.azure.com/"
+LIVE="https://centralindia.livediagnostics.monitor.azure.com/"
+
+printf 'APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=%s;IngestionEndpoint=%s;LiveEndpoint=%s;ApplicationId=%s\n' \
+  "$IKEY" "$INGEST" "$LIVE" "$APPID" > /etc/demoapp.env
+echo 'OTEL_SERVICE_NAME=demo-web' >> /etc/demoapp.env
+
+cat /etc/demoapp.env      # the connection string must be ONE line
+
+
+
+
+```
+```bash
+cat > /etc/systemd/system/demoapp.service <<'EOF'
 [Unit]
 Description=Demo Flask app with Application Insights
 After=network.target
 
 [Service]
-User=azureuser
+User=root
 WorkingDirectory=/opt/demoapp
-Environment="APPLICATIONINSIGHTS_CONNECTION_STRING=PASTE_YOUR_CONNECTION_STRING_HERE"
-Environment="OTEL_SERVICE_NAME=demo-web"
+EnvironmentFile=/etc/demoapp.env
 ExecStart=/opt/demoapp/venv/bin/gunicorn --workers 2 --bind 0.0.0.0:8080 app:app
 Restart=always
 
