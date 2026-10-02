@@ -299,12 +299,7 @@ Back on **your laptop / Cloud Shell** (not the VM).
 ### 6.1 Install the Azure Monitor Agent
 
 ```bash
-az vm extension set \
-  --resource-group $RG \
-  --vm-name $VM_NAME \
-  --name AzureMonitorLinuxAgent \
-  --publisher Microsoft.Azure.Monitor \
-  --enable-auto-upgrade true
+az vm extension set   --resource-group $RG  --vm-name $VM_NAME --name AzureMonitorLinuxAgent   --publisher Microsoft.Azure.Monitor --enable-auto-upgrade true
 ```
 
 ### 6.2 Create a VM Insights Data Collection Rule
