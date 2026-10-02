@@ -127,24 +127,16 @@ echo "VM public IP: $VM_IP"
 
 ```bash
 # Log Analytics workspace (stores VM Insights + App Insights data)
-az monitor log-analytics workspace create \
-  --resource-group $RG \
-  --workspace-name $LAW_NAME \
-  --location $LOCATION
+New-AzOperationalInsightsWorkspace -ResourceGroupName $RG -Name $LAW_NAME -Location $LOCATION
 
-LAW_ID=$(az monitor log-analytics workspace show -g $RG -n $LAW_NAME --query id -o tsv)
+$LAW_ID = (Get-AzOperationalInsightsWorkspace -ResourceGroupName $RG -Name $LAW_NAME).ResourceId
 
 # Workspace-based Application Insights
-az monitor app-insights component create \
-  --app $APPI_NAME \
-  --location $LOCATION \
-  --resource-group $RG \
-  --workspace $LAW_ID \
-  --application-type web
+# Note: Ensure you have the Az.ApplicationInsights module installed
+New-AzApplicationInsights -ResourceGroupName $RG -Name $APPI_NAME -Location $LOCATION -WorkspaceResourceId $LAW_ID -ApplicationType web
 
-APPI_CONN=$(az monitor app-insights component show -g $RG --app $APPI_NAME \
-  --query connectionString -o tsv)
-echo "$APPI_CONN"
+$APPI_CONN = (Get-AzApplicationInsights -ResourceGroupName $RG -Name $APPI_NAME).ConnectionString
+Write-Output $APPI_CONN
 ```
 
 Copy the connection string — you'll paste it on the VM in Step 5.
