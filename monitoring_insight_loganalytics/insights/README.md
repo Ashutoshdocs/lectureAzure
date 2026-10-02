@@ -250,16 +250,16 @@ def health():
 
 ### 5.2 Run it as a systemd service
 ```bash
-IKEY="47c84b46-bf59-48a1-afde-1d334accf31f"
-APPID="e753c910-52de-4c56-8721-e7f2c4748896"
-INGEST="https://centralindia-0.in.applicationinsights.azure.com/"
-LIVE="https://centralindia.livediagnostics.monitor.azure.com/"
+IKEY="<InstrumentationKey value>"
+APPID="<ApplicationId value>"
+INGEST="https://<region>-0.in.applicationinsights.azure.com/"
+LIVE="https://<region>.livediagnostics.monitor.azure.com/"
 
 printf 'APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=%s;IngestionEndpoint=%s;LiveEndpoint=%s;ApplicationId=%s\n' \
-  "$IKEY" "$INGEST" "$LIVE" "$APPID" > /etc/demoapp.env
-echo 'OTEL_SERVICE_NAME=demo-web' >> /etc/demoapp.env
+  "$IKEY" "$INGEST" "$LIVE" "$APPID" | sudo tee /etc/demoapp.env > /dev/null
+echo 'OTEL_SERVICE_NAME=demo-web' | sudo tee -a /etc/demoapp.env > /dev/null
 
-cat /etc/demoapp.env      # the connection string must be ONE line
+cat /etc/demoapp.env   # the connection string must be on ONE line
 ```
 ```bash
 cat > /etc/systemd/system/demoapp.service <<'EOF'
