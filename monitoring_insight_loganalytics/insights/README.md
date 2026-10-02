@@ -364,42 +364,52 @@ sed -i "s|<LOCATION>|$LOCATION|; s|<LAW_ID>|$LAW_ID|" dcr-vminsights.json
 Create the DCR and associate it with the VM:
 
 ```bash
-# 1. Clear out the backslashes and set the file path variable
+# ---- Variables (PowerShell session) ----
+$RG       = "rg-monitor-demo"
+$LOCATION = "centralindia"
+$VM_NAME  = "vm-demo-web"
+$LAW_NAME = "law-monitor-demo"
+$DCR_NAME = "dcr-vminsights-demo"
 $DCR_FILE_PATH = "C:\Users\ASHUTOSH KUMAR\Downloads\dcr-vminsights.json"
 
-# 2. Configure az CLI to allow preview extensions (silences the warning)
-Write-Host "Configuring Azure CLI extension settings..." -ForegroundColor Cyan
-az config set extension.dynamic_install_allow_preview=true
+function Assert-Az($step) {
+    if ($LASTEXITCODE -ne 0) { Write-Host "FAILED at: $step" -ForegroundColor Red; exit 1 }
+}
 
-# 3. Create the Data Collection Rule
+az config set extension.dynamic_install_allow_preview=true | Out-Null
+
+# ---- Fill JSON placeholders (no-op if already replaced) ----
+$LAW_ID = az monitor log-analytics workspace show -g $RG -n $LAW_NAME --query id -o tsv
+Assert-Az "Get workspace ID"
+$json = [IO.File]::ReadAllText($DCR_FILE_PATH).Replace('<LOCATION>', $LOCATION).Replace('<LAW_ID>', $LAW_ID)
+[IO.File]::WriteAllText($DCR_FILE_PATH, $json)   # writes UTF-8 without BOM
+
+# ---- Create DCR ----
 Write-Host "Creating Data Collection Rule ($DCR_NAME)..." -ForegroundColor Cyan
 az monitor data-collection rule create `
   --resource-group $RG `
   --name $DCR_NAME `
-  --rule-file $DCR_FILE_PATH
+  --rule-file "$DCR_FILE_PATH" -o none
+Assert-Az "Create DCR"
 
-# 4. Capture IDs into PowerShell variables using standard parentheses
-Write-Host "Fetching Resource IDs..." -ForegroundColor Cyan
-(DCR_ID = (az monitor data-collection rule show -g\)RG -n \(DCR_NAME --query id -o tsv)\)VM_ID = (az vm show -g RG -n VM_NAME --query id -o tsv)
+# ---- Get IDs ----
+$DCR_ID = az monitor data-collection rule show -g $RG -n $DCR_NAME --query id -o tsv
+Assert-Az "Get DCR ID"
+$VM_ID  = az vm show -g $RG -n $VM_NAME --query id -o tsv
+Assert-Az "Get VM ID"
 
-# 5. Associate the DCR with the Virtual Machine
-Write-Host "Associating DCR with Virtual Machine (\$VM_NAME)..." -ForegroundColor Cyan
+# ---- Associate DCR with VM ----
+Write-Host "Associating DCR with VM ($VM_NAME)..." -ForegroundColor Cyan
 az monitor data-collection rule association create `
-  --name "${VM_NAME}-dcr-assoc" `
+  --name "$VM_NAME-dcr-assoc" `
   --rule-id $DCR_ID `
-  --resource $VM_ID
+  --resource $VM_ID -o none
+Assert-Az "Create association"
 
-# 6. Verification and End Block
-Write-Host "`n=========================================" -ForegroundColor Green
-Write-Host " SUCCESS: SCRIPT EXECUTION COMPLETED" -ForegroundColor Green
-Write-Host "=========================================" -ForegroundColor Green
-Write-Host "Verified DCR ID: $DCR_ID" -ForegroundColor Yellow
-Write-Host "Verified VM ID:  $VM_ID" -ForegroundColor Yellow
+Write-Host "`nSUCCESS" -ForegroundColor Green
+Write-Host "DCR ID: $DCR_ID" -ForegroundColor Yellow
+Write-Host "VM ID:  $VM_ID"  -ForegroundColor Yellow
 
-
-
-
-  
 ```
 
 <details>
