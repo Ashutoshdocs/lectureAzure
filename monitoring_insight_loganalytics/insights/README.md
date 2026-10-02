@@ -64,17 +64,17 @@ az extension add --name application-insights --upgrade
 Run these once in your shell; every later command uses them.
 
 ```bash
-RG="rg-monitor-demo"
-LOCATION="centralindia"          # pick a region near you
-VM_NAME="vm-demo-web"
-VM_SIZE="Standard_B2s"           # 2 vCPU / 4 GB — enough to see load clearly
-ADMIN_USER="azureuser"
-ADMIN_PASS='Demo@Passw0rd!2026'  # 12–72 chars, upper+lower+digit+special
-LAW_NAME="law-monitor-demo"
-APPI_NAME="appi-monitor-demo"
-DCR_NAME="dcr-vminsights-demo"
-AG_NAME="ag-monitor-demo"
-ALERT_EMAIL="you@example.com"
+$RG = "rg-monitor-demo"
+$LOCATION = "centralindia" # pick a region near you
+$VM_NAME = "vm-demo-web"
+$VM_SIZE = "Standard_B2s" # 2 vCPU / 4 GB — enough to see load clearly
+$ADMIN_USER = "azureuser"
+$ADMIN_PASS = 'Demo@Passw0rd!2026' # 12–72 chars, upper+lower+digit+special
+$LAW_NAME = "law-monitor-demo"
+$APPI_NAME = "appi-monitor-demo"
+$DCR_NAME = "dcr-vminsights-demo"
+$AG_NAME = "ag-monitor-demo"
+$ALERT_EMAIL = "ashutoshkumarinbox@gmail.com"
 ```
 
 > 🔐 Password auth is used here because the lab is about monitoring, not hardening. For anything beyond a demo, use SSH keys and restrict port 22 to your IP.
