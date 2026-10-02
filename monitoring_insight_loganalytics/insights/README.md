@@ -92,17 +92,7 @@ az group create --name $RG --location $LOCATION
 ## Step 2 — Create the password-based Linux VM
 
 ```bash
-az vm create \
-  --resource-group $RG \
-  --name $VM_NAME \
-  --image Ubuntu2204 \
-  --size $VM_SIZE \
-  --admin-username $ADMIN_USER \
-  --admin-password "$ADMIN_PASS" \
-  --authentication-type password \
-  --public-ip-sku Standard \
-  --assign-identity \
-  --output table
+az vm create   --resource-group $RG   --name $VM_NAME --image Ubuntu2204 --size $VM_SIZE --admin-username $ADMIN_USER  --admin-password "$ADMIN_PASS"  --authentication-type password --public-ip-sku Standard   --assign-identity --output table
 ```
 
 `--assign-identity` gives the VM a system-assigned managed identity, which the Azure Monitor Agent uses to authenticate.
