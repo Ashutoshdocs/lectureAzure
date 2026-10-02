@@ -127,16 +127,17 @@ echo "VM public IP: $VM_IP"
 
 ```bash
 # Log Analytics workspace (stores VM Insights + App Insights data)
-New-AzOperationalInsightsWorkspace -ResourceGroupName $RG -Name $LAW_NAME -Location $LOCATION
+az monitor log-analytics workspace create --resource-group $RG --workspace-name $LAW_NAME --location $LOCATION
 
-$LAW_ID = (Get-AzOperationalInsightsWorkspace -ResourceGroupName $RG -Name $LAW_NAME).ResourceId
+# In PowerShell, we capture the pipeline output directly into the variable using standard parentheses
+$LAW_ID = (az monitor log-analytics workspace show -g $RG -n $LAW_NAME --query id -o tsv)
 
 # Workspace-based Application Insights
-# Note: Ensure you have the Az.ApplicationInsights module installed
-New-AzApplicationInsights -ResourceGroupName $RG -Name $APPI_NAME -Location $LOCATION -WorkspaceResourceId $LAW_ID -ApplicationType web
+az monitor app-insights component create --app $APPI_NAME --location $LOCATION --resource-group $RG --workspace $LAW_ID --application-type web
 
-$APPI_CONN = (Get-AzApplicationInsights -ResourceGroupName $RG -Name $APPI_NAME).ConnectionString
+$APPI_CONN = (az monitor app-insights component show -g $RG --app $APPI_NAME --query connectionString -o tsv)
 Write-Output $APPI_CONN
+
 ```
 
 Copy the connection string — you'll paste it on the VM in Step 5.
