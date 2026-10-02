@@ -260,10 +260,6 @@ printf 'APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=%s;IngestionEnd
 echo 'OTEL_SERVICE_NAME=demo-web' >> /etc/demoapp.env
 
 cat /etc/demoapp.env      # the connection string must be ONE line
-
-
-
-
 ```
 ```bash
 cat > /etc/systemd/system/demoapp.service <<'EOF'
