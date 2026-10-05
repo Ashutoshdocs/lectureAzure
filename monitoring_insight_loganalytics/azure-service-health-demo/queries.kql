@@ -1,0 +1,115 @@
+// =====================================================================
+// Azure Service Health — Resource Graph queries for the demo
+// Run in: Portal → Resource Graph Explorer
+//    or:  az graph query -q "<query>" --first 100 -o table
+// =====================================================================
+
+
+// ---------------------------------------------------------------------
+// Q1. All Service Health events (last 30 days), newest first
+// ---------------------------------------------------------------------
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend eventType  = tostring(properties.EventType),
+         status     = tostring(properties.Status),
+         title      = tostring(properties.Title),
+         level      = tostring(properties.Level),
+         lastUpdate = todatetime(properties.LastUpdateTime)
+| where lastUpdate > ago(30d)
+| project lastUpdate, eventType, status, level, title, trackingId = name, subscriptionId
+| order by lastUpdate desc
+
+
+// ---------------------------------------------------------------------
+// Q2. Count events by type — good for a quick chart
+// ---------------------------------------------------------------------
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend eventType = tostring(properties.EventType)
+| summarize events = count() by eventType
+| order by events desc
+
+
+// ---------------------------------------------------------------------
+// Q3. Active service issues only
+// ---------------------------------------------------------------------
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend eventType = tostring(properties.EventType),
+         status    = tostring(properties.Status),
+         title     = tostring(properties.Title),
+         start     = todatetime(properties.ImpactStartTime)
+| where eventType == 'ServiceIssue' and status == 'Active'
+| project start, title, trackingId = name, subscriptionId
+
+
+// ---------------------------------------------------------------------
+// Q4. Upcoming planned maintenance
+// ---------------------------------------------------------------------
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend eventType = tostring(properties.EventType),
+         status    = tostring(properties.Status),
+         title     = tostring(properties.Title),
+         start     = todatetime(properties.ImpactStartTime),
+         finish    = todatetime(properties.ImpactMitigationTime)
+| where eventType == 'PlannedMaintenance' and status == 'Active'
+| project start, finish, title, trackingId = name
+| order by start asc
+
+
+// ---------------------------------------------------------------------
+// Q5. Health advisories (retirements, deprecations, action required)
+// ---------------------------------------------------------------------
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend eventType  = tostring(properties.EventType),
+         title      = tostring(properties.Title),
+         lastUpdate = todatetime(properties.LastUpdateTime)
+| where eventType == 'HealthAdvisory'
+| project lastUpdate, title, trackingId = name
+| order by lastUpdate desc
+
+
+// ---------------------------------------------------------------------
+// Q6. Which of MY resources are impacted by a Service Health event
+// ---------------------------------------------------------------------
+ServiceHealthResources
+| where type =~ 'microsoft.resourcehealth/events/impactedresources'
+| extend trackingId = split(split(id, '/events/', 1)[0], '/impactedResources', 0)[0]
+| extend targetResourceId = tostring(properties.targetResourceId),
+         targetType       = tostring(properties.targetResourceType)
+| project trackingId, targetType, targetResourceId
+
+
+// ---------------------------------------------------------------------
+// Q7. Current Resource Health of every resource
+// ---------------------------------------------------------------------
+HealthResources
+| where type =~ 'microsoft.resourcehealth/availabilitystatuses'
+| extend resourceId   = tostring(properties.targetResourceId),
+         state        = tostring(properties.availabilityState),
+         reason       = tostring(properties.reasonType),
+         summary      = tostring(properties.summary),
+         occurredTime = todatetime(properties.occurredTime)
+| project occurredTime, state, reason, summary, resourceId
+| order by state asc
+
+
+// ---------------------------------------------------------------------
+// Q8. Resource Health summary — how many resources in each state
+// ---------------------------------------------------------------------
+HealthResources
+| where type =~ 'microsoft.resourcehealth/availabilitystatuses'
+| summarize resources = count() by state = tostring(properties.availabilityState)
+
+
+// ---------------------------------------------------------------------
+// Q9. Unhealthy VMs only (use after stopping the demo VM)
+// ---------------------------------------------------------------------
+HealthResources
+| where type =~ 'microsoft.resourcehealth/availabilitystatuses'
+| extend resourceId = tostring(properties.targetResourceId),
+         state      = tostring(properties.availabilityState)
+| where resourceId contains '/virtualMachines/' and state != 'Available'
+| project state, reason = tostring(properties.reasonType), resourceId
