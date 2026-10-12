@@ -25,35 +25,44 @@ write_files:
       # Remove default Nginx page
       rm -f "${WEBROOT}/index.nginx-debian.html"
 
-      # Download dashboard files safely
-      download_file() {
+      # Download a required file safely
+      download_required() {
           local name="$1"
           local tmp
           tmp=$(mktemp)
 
-          if curl -fLsS --retry 3 "${BASE_URL}/${name}" -o "$tmp"; then
-              if [ ! -s "$tmp" ]; then
-                  echo "ERROR: ${name} is empty" >&2
-                  rm -f "$tmp"
-                  return 1
-              fi
-
+          if curl -fLsS --retry 3 "${BASE_URL}/${name}" -o "$tmp" && [ -s "$tmp" ]; then
               mv "$tmp" "${WEBROOT}/${name}"
-              echo "Downloaded ${name} successfully"
+              echo "Downloaded ${name}"
           else
               rm -f "$tmp"
-              echo "ERROR: Failed to download ${BASE_URL}/${name}" >&2
+              echo "ERROR: Could not download ${name}" >&2
               return 1
           fi
       }
 
-      download_file index.html
-      download_file style.css
-      download_file script.js
+      # Download an optional file safely
+      download_optional() {
+          local name="$1"
+          local tmp
+          tmp=$(mktemp)
 
-      # Retrieve Azure instance metadata
+          if curl -fLsS --retry 3 "${BASE_URL}/${name}" -o "$tmp" && [ -s "$tmp" ]; then
+              mv "$tmp" "${WEBROOT}/${name}"
+              echo "Downloaded optional file ${name}"
+          else
+              rm -f "$tmp"
+              echo "Optional file not found: ${name}"
+          fi
+      }
+
+      download_required index.html
+      download_required script.js
+      download_optional style.css
+
+      # Retrieve Azure VM metadata
       META=$(curl -fSs --retry 3 
-        -H Metadata:true 
+        -H "Metadata:true" 
         "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
 
       HOSTNAME=$(echo "$META" | jq -er '.name')
@@ -77,7 +86,7 @@ write_files:
       nginx -t
       systemctl restart nginx
 
-      # Verify the website responds successfully
+      # Verify that Nginx serves the dashboard
       curl -fSs http://127.0.0.1/ -o /dev/null
 
       echo "Azure VMSS Dashboard installed successfully"
