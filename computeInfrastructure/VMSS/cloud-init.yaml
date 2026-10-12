@@ -14,40 +14,73 @@ write_files:
     owner: root:root
     content: |
       #!/bin/bash
-      set -eux
+      set -euxo pipefail
 
       WEBROOT=/var/www/html
+      BASE_URL="https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/computeInfrastructure/VMSS"
 
       systemctl enable nginx
       systemctl start nginx
 
-      # Remove default nginx page
-      rm -f ${WEBROOT}/index.nginx-debian.html
+      # Remove default Nginx page
+      rm -f "${WEBROOT}/index.nginx-debian.html"
 
-      # Download dashboard files
-      curl -L https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/VMSS/index.html -o ${WEBROOT}/index.html
-      curl -L https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/VMSS/style.css -o ${WEBROOT}/style.css
-      curl -L https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/VMSS/script.js -o ${WEBROOT}/script.js
+      # Download dashboard files safely
+      download_file() {
+          local name="$1"
+          local tmp
+          tmp=$(mktemp)
 
-      # Azure Metadata
-      META=$(curl -H Metadata:true -s \
-      "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
+          if curl -fLsS --retry 3 "${BASE_URL}/${name}" -o "$tmp"; then
+              if [ ! -s "$tmp" ]; then
+                  echo "ERROR: ${name} is empty" >&2
+                  rm -f "$tmp"
+                  return 1
+              fi
 
-      HOSTNAME=$(echo "$META" | jq -r '.name')
-      REGION=$(echo "$META" | jq -r '.location')
+              mv "$tmp" "${WEBROOT}/${name}"
+              echo "Downloaded ${name} successfully"
+          else
+              rm -f "$tmp"
+              echo "ERROR: Failed to download ${BASE_URL}/${name}" >&2
+              return 1
+          fi
+      }
 
-      cat > ${WEBROOT}/config.js <<EOF
+      download_file index.html
+      download_file style.css
+      download_file script.js
+
+      # Retrieve Azure instance metadata
+      META=$(curl -fSs --retry 3 
+        -H Metadata:true 
+        "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
+
+      HOSTNAME=$(echo "$META" | jq -er '.name')
+      REGION=$(echo "$META" | jq -er '.location')
+
+      # Generate dashboard configuration
+      cat > "${WEBROOT}/config.js" <<EOF
       window.AZURE_CONFIG = {
-          hostname: "$HOSTNAME",
-          region: "$REGION",
+          hostname: "${HOSTNAME}",
+          region: "${REGION}",
           bootEpoch: $(date +%s)
       };
       EOF
 
-      chown -R www-data:www-data ${WEBROOT}
-      chmod -R 755 ${WEBROOT}
+      # Set website permissions
+      chown -R www-data:www-data "${WEBROOT}"
+      find "${WEBROOT}" -type d -exec chmod 755 {} \;
+      find "${WEBROOT}" -type f -exec chmod 644 {} \;
 
+      # Validate and restart Nginx
+      nginx -t
       systemctl restart nginx
+
+      # Verify the website responds successfully
+      curl -fSs http://127.0.0.1/ -o /dev/null
+
+      echo "Azure VMSS Dashboard installed successfully"
 
 runcmd:
   - bash /usr/local/bin/setup-dashboard.sh
