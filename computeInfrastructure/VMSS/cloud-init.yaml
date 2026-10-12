@@ -14,25 +14,40 @@ write_files:
     owner: root:root
     content: |
       #!/bin/bash
-      set -euxo pipefail
+      set -Eeuo pipefail
+      exec > >(tee -a /var/log/setup-dashboard.log) 2>&1
+      trap 'rc=$?; echo "ERROR: line ${LINENO}, exit code ${rc}" >&2; exit "$rc"' ERR
+
+      echo "Starting Azure VMSS dashboard setup: $(date -Is)"
 
       WEBROOT=/var/www/html
       BASE_URL="https://raw.githubusercontent.com/Ashutoshdocs/lectureAzure/main/computeInfrastructure/VMSS"
 
+      # Verify required packages
+      command -v nginx
+      command -v curl
+      command -v jq
+
+      # Start Nginx
       systemctl enable nginx
       systemctl start nginx
 
-      # Remove default Nginx page
+      mkdir -p "${WEBROOT}"
+
+      # Remove the default Nginx welcome page
       rm -f "${WEBROOT}/index.nginx-debian.html"
 
-      # Download a required file safely
+      # Download a required file atomically
       download_required() {
           local name="$1"
           local tmp
-          tmp=$(mktemp)
+          tmp=$(mktemp "${WEBROOT}/.${name}.XXXXXX")
 
-          if curl -fLsS --retry 3 "${BASE_URL}/${name}" -o "$tmp" && [ -s "$tmp" ]; then
-              mv "$tmp" "${WEBROOT}/${name}"
+          if curl --fail --location --silent --show-error \
+              --retry 3 --retry-delay 2 \
+              "${BASE_URL}/${name}" -o "$tmp" && [ -s "$tmp" ]; then
+              install -o www-data -g www-data -m 0644 "$tmp" "${WEBROOT}/${name}"
+              rm -f "$tmp"
               echo "Downloaded ${name}"
           else
               rm -f "$tmp"
@@ -41,60 +56,69 @@ write_files:
           fi
       }
 
-      # Download an optional file safely
+      # Download an optional file
       download_optional() {
           local name="$1"
           local tmp
-          tmp=$(mktemp)
+          tmp=$(mktemp "${WEBROOT}/.${name}.XXXXXX")
 
-          if curl -fLsS --retry 3 "${BASE_URL}/${name}" -o "$tmp" && [ -s "$tmp" ]; then
-              mv "$tmp" "${WEBROOT}/${name}"
+          if curl --fail --location --silent --show-error \
+              --retry 3 --retry-delay 2 \
+              "${BASE_URL}/${name}" -o "$tmp" && [ -s "$tmp" ]; then
+              install -o www-data -g www-data -m 0644 "$tmp" "${WEBROOT}/${name}"
               echo "Downloaded optional file ${name}"
           else
-              rm -f "$tmp"
-              echo "Optional file not found: ${name}"
+              echo "Optional file unavailable: ${name}"
           fi
+
+          rm -f "$tmp"
       }
 
+      # Fetch dashboard assets
       download_required index.html
       download_required script.js
       download_optional style.css
 
-      # Retrieve Azure VM metadata
-      META=$(curl -fSs --retry 3 
-        -H "Metadata:true" 
-        "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
+      # Retrieve Azure VMSS instance metadata
+      META=$(curl --fail --silent --show-error 
+          --retry 3 --retry-delay 2 
+          -H "Metadata: true" 
+          "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01")
 
-      HOSTNAME=$(echo "$META" | jq -er '.name')
-      REGION=$(echo "$META" | jq -er '.location')
+      HOSTNAME=$(printf '%s' "$META" | jq -er '.name')
+      REGION=$(printf '%s' "$META" | jq -er '.location')
 
-      # Generate dashboard configuration
+      # Safely encode metadata as JSON strings
+      HOSTNAME_JSON=$(printf '%s' "$HOSTNAME" | jq -Rs .)
+      REGION_JSON=$(printf '%s' "$REGION" | jq -Rs .)
+
       cat > "${WEBROOT}/config.js" <<EOF
       window.AZURE_CONFIG = {
-          hostname: "${HOSTNAME}",
-          region: "${REGION}",
+          hostname: ${HOSTNAME_JSON},
+          region: ${REGION_JSON},
           bootEpoch: $(date +%s)
       };
       EOF
 
-      # Set website permissions
-      chown -R www-data:www-data "${WEBROOT}"
-      find "${WEBROOT}" -type d -exec chmod 755 {} \;
-      find "${WEBROOT}" -type f -exec chmod 644 {} \;
+      chown www-data:www-data "${WEBROOT}/config.js"
+      chmod 0644 "${WEBROOT}/config.js"
 
-      # Validate and restart Nginx
+      # Validate Nginx configuration and restart
       nginx -t
       systemctl restart nginx
 
-      # Verify that Nginx serves the dashboard
-      curl -fSs http://127.0.0.1/ -o /dev/null
+      # Verify local HTTP response
+      curl --fail --silent --show-error 
+          http://127.0.0.1/ -o /dev/null
 
-      echo "Azure VMSS Dashboard installed successfully"
+      echo "SUCCESS: Azure VMSS Dashboard installed at $(date -Is)"
 
 runcmd:
-  - bash /usr/local/bin/setup-dashboard.sh
+  - [bash, -lc, "/usr/local/bin/setup-dashboard.sh"]
 
 final_message: |
   ==========================================
-  Azure VMSS Dashboard Installed
+  Azure VMSS Dashboard Setup Finished
+  Check /var/log/cloud-init-output.log
+  Check /var/log/setup-dashboard.log
   ==========================================
