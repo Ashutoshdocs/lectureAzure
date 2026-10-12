@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PANAMAACADEMY &middot; Admit Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0e1330;
+    --muted:#5b6079;
+    --line:#e6e8f0;
+    --indigo:#4f46e5;
+    --indigo-deep:#3730a3;
+    --cyan:#06b6d4;
+    --ok:#0f9d63;
+    --ok-bg:#e9f8f0;
+    --err:#d64550;
+    --err-bg:#fdecec;
+    --card:#ffffff;
+  }
+ 
+  *{box-sizing:border-box;}
+ 
+  html,body{height:100%;}
+ 
+  body{
+    margin:0;
+    font-family:"Inter",system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1100px 600px at 15% -10%, #dbe4ff 0%, transparent 55%),
+      radial-gradient(900px 600px at 110% 20%, #d3f4fb 0%, transparent 50%),
+      linear-gradient(180deg,#f6f8ff 0%,#eef1fb 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+ 
+  .card{
+    width:100%;
+    max-width:460px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:34px 32px 28px;
+    box-shadow:0 1px 2px rgba(16,20,60,.04), 0 24px 48px -24px rgba(16,20,60,.28);
+  }
+ 
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--indigo);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .eyebrow .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--cyan);
+    box-shadow:0 0 0 4px rgba(6,182,212,.15);
+  }
+ 
+  h1{
+    font-family:"Space Grotesk",sans-serif;
+    font-weight:700;
+    font-size:27px;
+    line-height:1.15;
+    margin:0 0 6px;
+    letter-spacing:-.01em;
+  }
+ 
+  .sub{
+    color:var(--muted);
+    font-size:14px;
+    margin:0 0 24px;
+    line-height:1.5;
+  }
+ 
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:7px;
+    margin-top:14px;
+  }
+  label:first-of-type{margin-top:0;}
+ 
+  .field{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:0 14px;
+    background:#fbfcff;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .field:focus-within{
+    border-color:var(--indigo);
+    background:#fff;
+    box-shadow:0 0 0 4px rgba(79,70,229,.12);
+  }
+  .field svg{flex:none;color:var(--muted);}
+  input, select{
+    border:0;
+    outline:0;
+    background:transparent;
+    padding:13px 0;
+    font-size:15px;
+    font-family:inherit;
+    color:var(--ink);
+    width:100%;
+    appearance:none;
+  }
+  input::placeholder{color:#a2a7be;}
+  select:invalid{color:#a2a7be;}
+ 
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .photo-field{
+    display:flex;align-items:center;gap:12px;
+    border:1.5px dashed var(--line);
+    border-radius:12px;
+    padding:12px 14px;
+    background:#fbfcff;
+  }
+  .photo-field label.pick{
+    margin:0;cursor:pointer;
+    font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:13px;
+    color:var(--indigo);
+    border:1.5px solid var(--indigo);border-radius:9px;
+    padding:8px 12px;white-space:nowrap;
+    transition:background .15s,color .15s;
+  }
+  .photo-field label.pick:hover{background:var(--indigo);color:#fff;}
+  .photo-field .hint{font-size:12px;color:var(--muted);}
+  .photo-field input[type=file]{display:none;}
+  .thumb{
+    width:52px;height:52px;flex:none;
+    border-radius:9px;object-fit:cover;
+    border:1px solid var(--line);
+    display:none;
+  }
+ 
+  button{
+    width:100%;
+    margin-top:20px;
+    padding:13px 18px;
+    font-family:"Space Grotesk",sans-serif;
+    font-weight:600;
+    font-size:15px;
+    color:#fff;
+    background:linear-gradient(180deg,var(--indigo) 0%,var(--indigo-deep) 100%);
+    border:0;
+    border-radius:12px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    transition:transform .12s, box-shadow .2s, opacity .2s;
+    box-shadow:0 10px 20px -10px rgba(79,70,229,.7);
+  }
+  button:hover:not(:disabled){transform:translateY(-1px);}
+  button:active:not(:disabled){transform:translateY(0);}
+  button:disabled{opacity:.7;cursor:default;box-shadow:none;}
+ 
+  .spinner{
+    width:16px;height:16px;flex:none;
+    border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+ 
+  /* ---- signature: request lifecycle ---- */
+  .flow{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    margin:26px 2px 4px;
+    position:relative;
+  }
+  .flow::before{
+    content:"";
+    position:absolute;
+    top:15px;left:14%;right:14%;
+    height:2px;
+    background:var(--line);
+    z-index:0;
+  }
+  .stage{
+    position:relative;
+    z-index:1;
+    text-align:center;
+    width:33%;
+  }
+  .stage .node{
+    width:30px;height:30px;
+    margin:0 auto 8px;
+    border-radius:50%;
+    background:#fff;
+    border:2px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);
+    transition:all .3s ease;
+  }
+  .stage .node svg{width:15px;height:15px;}
+  .stage .cap{
+    font-family:"JetBrains Mono",monospace;
+    font-size:10px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    transition:color .3s;
+  }
+  .stage.active .node{
+    border-color:var(--indigo);
+    color:var(--indigo);
+    box-shadow:0 0 0 5px rgba(79,70,229,.12);
+  }
+  .stage.done .node{
+    border-color:var(--ok);
+    background:var(--ok);
+    color:#fff;
+  }
+  .stage.done .cap{color:var(--ok);}
+ 
+  /* ---- result ---- */
+  .result{
+    margin-top:22px;
+    border-radius:13px;
+    padding:16px 16px 14px;
+    font-size:14px;
+    display:none;
+    animation:rise .35s ease;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .result.show{display:block;}
+  .result.ok{background:var(--ok-bg);border:1px solid #bde9d2;}
+  .result.err{background:var(--err-bg);border:1px solid #f6c9cc;}
+ 
+  .result .head{
+    display:flex;align-items:center;gap:9px;
+    font-family:"Space Grotesk",sans-serif;
+    font-weight:600;font-size:15px;margin-bottom:12px;
+  }
+  .result.ok .head{color:var(--ok);}
+  .result.err .head{color:var(--err);}
+ 
+  .card-img{
+    width:100%;
+    border-radius:10px;
+    border:1px solid #bde9d2;
+    display:block;
+    margin-bottom:12px;
+    box-shadow:0 8px 20px -12px rgba(16,20,60,.4);
+  }
+ 
+  .rec{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:6px 14px;
+    font-size:13px;
+  }
+  .rec dt{color:var(--muted);}
+  .rec dd{
+    margin:0;
+    font-family:"JetBrains Mono",monospace;
+    color:var(--ink);
+    word-break:break-all;
+  }
+ 
+  .dl{
+    display:inline-flex;align-items:center;gap:8px;
+    margin-top:14px;
+    text-decoration:none;
+    font-family:"Space Grotesk",sans-serif;
+    font-weight:600;font-size:13px;
+    color:var(--indigo);
+    border:1.5px solid var(--indigo);
+    border-radius:10px;
+    padding:9px 14px;
+    transition:background .15s,color .15s;
+  }
+  .dl:hover{background:var(--indigo);color:#fff;}
+ 
+  .result.err .msg{color:#8a2b32;line-height:1.5;}
+ 
+  .foot{
+    margin-top:22px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    color:#9aa0ba;
+    display:flex;align-items:center;gap:8px;
+    overflow:hidden;
+  }
+  .foot .verb{color:var(--indigo);}
+  .foot .ep{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+ 
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="eyebrow"><span class="dot"></span>PANAMAACADEMY &middot; Examinations</div>
+    <h1>Generate admit card</h1>
+    <p class="sub">Fill in the student details. An HTTP-triggered Azure Function renders a printable admit&nbsp;card PNG, stores it in Blob&nbsp;Storage, and returns it below.</p>
+ 
+    <label for="name">Student name</label>
+    <div class="field">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <input id="name" placeholder="e.g. Aditya Sharma" autocomplete="off" autofocus>
+    </div>
+ 
+    <label for="department">Department</label>
+    <div class="field">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      <input id="department" placeholder="e.g. Computer Science" autocomplete="off">
+    </div>
+ 
+    <div class="row2">
+      <div>
+        <label for="rollno">Roll number</label>
+        <div class="field">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+          <input id="rollno" placeholder="e.g. PA-2025-014" autocomplete="off">
+        </div>
+      </div>
+      <div>
+        <label for="year">Year</label>
+        <div class="field">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <select id="year" required>
+            <option value="" disabled selected>Select</option>
+            <option>First Year</option>
+            <option>Second Year</option>
+            <option>Third Year</option>
+            <option>Fourth Year</option>
+          </select>
+        </div>
+      </div>
+    </div>
+ 
+    <label for="photo">Photo <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+    <div class="photo-field">
+      <img id="photoPreview" class="thumb" alt="">
+      <label class="pick" for="photo">Choose photo</label>
+      <input id="photo" type="file" accept="image/*">
+      <span class="hint" id="photoHint">JPG or PNG &middot; a passport-style photo works best</span>
+    </div>
+
+    <button id="submit" onclick="generateCard()">
+      <span id="btnlabel">Generate admit card</span>
+    </button>
+ 
+    <div class="flow" id="flow">
+      <div class="stage" data-stage="0">
+        <div class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+        <div class="cap">Request</div>
+      </div>
+      <div class="stage" data-stage="1">
+        <div class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div class="cap">Render</div>
+      </div>
+      <div class="stage" data-stage="2">
+        <div class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></div>
+        <div class="cap">Blob</div>
+      </div>
+    </div>
+ 
+    <div class="result" id="result">
+      <div class="head" id="resultHead"></div>
+      <div id="resultBody"></div>
+    </div>
+ 
+    <div class="foot">
+      <span class="verb">GET</span>
+      <span class="ep" id="endpoint">https://YOURFUNCTION.azurewebsites.net/api/CreateStudent</span>
+    </div>
+  </main>
+ 
+<script>
+  const API = "https://YOURFUNCTION.azurewebsites.net/api/CreateStudent";
+  const $ = (id) => document.getElementById(id);
+  const val = (id) => $(id).value.trim();
+  const stages = [...document.querySelectorAll(".stage")];
+ 
+  $("endpoint").textContent = API;
+  ["name","department","rollno"].forEach(id =>
+    $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") generateCard(); }));
+ 
+  // hold the chosen photo as a base64 data URL (empty = no photo)
+  let photoData = "";
+  $("photo").addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    const pv = $("photoPreview");
+    if (!f){ photoData = ""; pv.style.display = "none"; $("photoHint").textContent = "JPG or PNG \u00b7 a passport-style photo works best"; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      photoData = reader.result;          // "data:image/...;base64,...."
+      pv.src = photoData; pv.style.display = "block";
+      $("photoHint").textContent = f.name;
+    };
+    reader.readAsDataURL(f);
+  });
+ 
+  function setStage(i, state){
+    stages.forEach((s, idx) => {
+      s.classList.remove("active","done");
+      if (idx < i) s.classList.add("done");
+      else if (idx === i) s.classList.add(state || "active");
+    });
+  }
+  function resetFlow(){ stages.forEach(s => s.classList.remove("active","done")); }
+ 
+  function showResult(kind, headHTML, bodyHTML){
+    const r = $("result");
+    r.className = "result show " + kind;
+    $("resultHead").innerHTML = headHTML;
+    $("resultBody").innerHTML = bodyHTML;
+  }
+  function showError(title, msg){
+    showResult("err",
+      `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ${title}`,
+      `<div class="msg">${msg}</div>`);
+  }
+ 
+  function loading(on){
+    const btn = $("submit");
+    btn.disabled = on;
+    $("btnlabel").textContent = on ? "Generating\u2026" : "Generate admit card";
+    let sp = btn.querySelector(".spinner");
+    if (on && !sp){ sp = document.createElement("span"); sp.className = "spinner"; btn.prepend(sp); }
+    if (!on && sp) sp.remove();
+  }
+ 
+  function showCard(d){
+    const img = d.imageBase64; // already a data: URL
+    showResult("ok",
+      `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Admit card ready`,
+      `<img class="card-img" src="${img}" alt="Admit card for ${escapeHtml(d.name)}">
+       <dl class="rec">
+         <dt>Name</dt><dd>${escapeHtml(d.name)}</dd>
+         <dt>Roll No</dt><dd>${escapeHtml(d.rollNo)}</dd>
+         <dt>Record ID</dt><dd>${escapeHtml(d.recordId)}</dd>
+         <dt>Blob</dt><dd>${escapeHtml(d.blobName)}</dd>
+       </dl>
+       <a class="dl" href="${img}" download="${escapeHtml(d.blobName)}">
+         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+         Download PNG
+       </a>`);
+  }
+ 
+  async function generateCard(){
+    const name = val("name"), dept = val("department"), roll = val("rollno"), year = val("year");
+    const missing = [];
+    if (!name) missing.push("name");
+    if (!dept) missing.push("department");
+    if (!roll) missing.push("roll number");
+    if (!year) missing.push("year");
+    if (missing.length){
+      showError("Missing fields", "Please fill in: " + missing.join(", ") + ".");
+      resetFlow();
+      return;
+    }
+ 
+    loading(true);
+    setStage(0, "active");
+ 
+    try {
+      setTimeout(() => setStage(1, "active"), 250);
+ 
+      // POST as JSON so the (potentially large) photo can be included
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, department: dept, rollno: roll, year, photo: photoData })
+      });
+      const text = (await res.text()).trim();
+ 
+      if (!res.ok) throw new Error(text || ("Request failed (" + res.status + ")"));
+ 
+      const data = JSON.parse(text);
+      setStage(2, "done");
+      showCard(data);
+    } catch (err) {
+      resetFlow();
+      showError("Couldn't generate",
+        escapeHtml(err.message) + "<br>Check that the function URL is correct and the app is running.");
+    } finally {
+      loading(false);
+    }
+  }
+ 
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
