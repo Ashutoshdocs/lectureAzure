@@ -1,25 +1,40 @@
 name: Run commands.ps1
- 
-# Manual only — commands.ps1 creates billable Azure resources.
+
+# Manual execution only because the script creates billable Azure resources
 on:
   workflow_dispatch:
- 
+
 permissions:
   contents: read
- 
+
 jobs:
   run:
-    runs-on: ubuntu-latest          # az CLI + pwsh are both preinstalled; free on public repos
+    runs-on: ubuntu-latest
+
     steps:
+      # Step 1: Checkout repository
       - name: Checkout
         uses: actions/checkout@v4
- 
+
+      # Step 2: Azure login
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
- 
+
+      # Step 3: Verify files and execute PowerShell script
       - name: Execute commands.ps1
         shell: pwsh
-        working-directory: webappvnetinjection   # app.py / templates / startup.sh live here
-        run: ./commands.ps1
+        working-directory: serverlessInfra/webappservice/webappvnetinjection
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+
+          Write-Host "Files in the directory:"
+          Get-ChildItem
+
+          if (-not (Test-Path "./commands.ps1")) {
+              throw "commands.ps1 not found in the working directory"
+          }
+
+          ./commands.ps1
