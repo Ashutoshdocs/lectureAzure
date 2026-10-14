@@ -1,450 +1,552 @@
-# Azure VNet Injection — End-to-End Demo (Without App Service VNet Integration)
+# Azure App Service VNet Integration — Without VNet Injection
 
-> **Goal:** Teach and prove Azure **VNet injection** as a deployment model where a supported Azure service is deployed into a customer-managed VNet/subnet. This lab uses **Azure Database for PostgreSQL Flexible Server with private VNet access**.
+> **Objective:** Build and prove Azure App Service **regional VNet Integration** for outbound connectivity to a private Azure SQL Database. The Web App Service remains a multi-tenant App Service; it is **not deployed/injected into the VNet**.
 >
-> **Explicit scope:** This demo does **not** use Azure App Service VNet Integration. There is no Web App Service integration subnet and no `Microsoft.Web/serverFarms` delegation in this lab. PostgreSQL Flexible Server is deployed into its own delegated subnet.
+> **Important:** This demo uses **App Service VNet Integration + Azure SQL private endpoint**. It does **not** use VNet injection for App Service, and it does not use PostgreSQL Flexible Server deployed into a delegated database subnet. The Private Endpoint is for Azure SQL Database, not for the Web App Service.
 
-This is a production-style learning lab. It does not claim that resources have already been deployed. Follow the portal steps and capture evidence from your own subscription.
+This is a production-style learning lab, not a claim that the resources have already been deployed. Capture evidence from your actual Azure subscription.
 
 ---
 
-## 1. Learning outcomes
+## 1. Learning objectives
 
-By completing this lab, you will learn to:
+By the end, you should be able to:
 
-1. Explain VNet injection and how it differs from App Service VNet Integration.
-2. Deploy PostgreSQL Flexible Server using private VNet access.
-3. Create and delegate a dedicated subnet to `Microsoft.DBforPostgreSQL/flexibleServers`.
-4. Configure private DNS so the database hostname resolves privately.
-5. Prove database connectivity from a client VM inside the VNet.
-6. Verify that public database access is not enabled for this private-only architecture.
-7. Troubleshoot subnet delegation, DNS, routing, NSG, and database connectivity issues.
+1. Explain why App Service VNet Integration is not the same as VNet injection.
+2. Create a VNet with a dedicated subnet delegated to `Microsoft.Web/serverFarms`.
+3. Configure regional VNet Integration on a Linux Azure Web App Service.
+4. Create an Azure SQL logical server and database with private endpoint connectivity.
+5. Configure private DNS so the SQL FQDN resolves to a private IP.
+6. Prove that the Web App Service can query SQL over private network connectivity.
+7. Show that the Web App Service itself is not deployed inside the VNet.
+8. Collect screenshots and troubleshooting evidence suitable for a teaching practical.
 
-## 2. What “VNet injection” means in this demo
+## 2. Concepts: integration vs injection
 
-For this lab, **VNet injection** means that PostgreSQL Flexible Server is deployed with private VNet access into a subnet in your VNet. The database uses that delegated subnet rather than relying on a public database endpoint.
-
-> Azure uses different networking models across services. This guide uses PostgreSQL Flexible Server private VNet access as the concrete example of a service deployed into a delegated subnet. Do not assume every Azure service uses the same injection model or subnet delegation.
-
-### VNet injection vs. VNet Integration vs. Private Endpoint
-
-| Feature | Meaning | Used in this demo? |
+| Concept | What it means | In this lab |
 |---|---|---|
-| **VNet injection / private VNet deployment** | The supported service is deployed into a customer VNet subnet | **Yes — PostgreSQL Flexible Server** |
-| **App Service VNet Integration** | Gives an App Service an outbound path into a VNet through a dedicated integration subnet | **No** |
-| **Private Endpoint** | Creates a private IP network interface in a VNet to access a supported service over Private Link | **No** |
-| **VNet peering** | Connects two VNets at the network layer | **No** |
+| **App Service VNet Integration** | Routes supported outbound traffic from App Service into a VNet through a dedicated integration subnet | **Yes** |
+| **VNet injection** | A supported service is deployed into a customer-managed VNet/subnet as part of its network placement model | **No** |
+| **Private Endpoint** | Adds a private IP network interface in a VNet for private access to a supported service | **Yes, for Azure SQL Database** |
+| **App Service Private Endpoint** | Provides private inbound access to the Web App Service | **No** |
 
-The database has private VNet connectivity. A VM in the same VNet connects to it using its private FQDN. This proves the private network path without introducing App Service VNet Integration.
+**Core teaching point:** VNet Integration lets the Web App Service initiate outbound connections to resources reachable through the VNet. It does not put the Web App Service worker into your VNet, and it does not automatically make inbound web access private.
 
 ---
 
 ## 3. Architecture
 
 ```text
-                   Administrator
-                 Azure Portal / CLI
-                         |
-                         v
-+------------------------------------------------------------------+
-| Azure subscription                                               |
-| Resource group: rg-vnet-injection-demo                           |
-|                                                                  |
-| VNet: vnet-injection-demo                                        |
-| Address space: 10.40.0.0/16                                      |
-|                                                                  |
-|  +-------------------------------+                               |
-|  | snet-postgres                 |                               |
-|  | 10.40.1.0/24 (example)        |                               |
-|  | Delegation:                   |                               |
-|  | Microsoft.DBforPostgreSQL/    |                               |
-|  | flexibleServers               |                               |
-|  |                               |                               |
-|  | PostgreSQL Flexible Server    |                               |
-|  | Private VNet access           |                               |
-|  +---------------+---------------+                               |
-|                  |                                               |
-|                  | Private DNS zone                              |
-|                  | linked to VNet                                |
-|                  |                                               |
-|  +---------------v---------------+                               |
-|  | snet-client                   |                               |
-|  | 10.40.2.0/24 (example)        |                               |
-|  |                               |                               |
-|  | Ubuntu test VM                |                               |
-|  | psql / DNS lookup / TCP test  |                               |
-|  +-------------------------------+                               |
-+------------------------------------------------------------------+
-
-Test VM -> private DNS -> PostgreSQL private address
-No App Service Integration subnet, no Private Endpoint, no VNet peering.
+                    User / Browser
+                          |
+                          | HTTPS
+                          v
+             +---------------------------+
+             | Azure Web App Service     |
+             | web-vnet-outbound-demo    |
+             | Linux / Flask             |
+             | NOT injected into VNet    |
+             +-------------+-------------+
+                           |
+                           | Outbound VNet Integration
+                           v
++---------------------------------------------------------------------+
+| Azure VNet: vnet-app-integration                                    |
+| Address space: 10.50.0.0/16                                         |
+|                                                                     |
+|  +--------------------------------+                                 |
+|  | snet-appservice-integration    |                                 |
+|  | 10.50.1.0/26 (example)         |                                 |
+|  | Delegation: Microsoft.Web/     |                                 |
+|  | serverFarms                    |                                 |
+|  +--------------------------------+                                 |
+|                                                                     |
+|  +--------------------------------+                                 |
+|  | snet-private-endpoints         |                                 |
+|  | 10.50.2.0/24 (example)         |                                 |
+|  | Azure SQL Private Endpoint NIC |                                 |
+|  +----------------+---------------+                                 |
+|                   |                                                 |
+|                   | Private DNS: privatelink.database.windows.net  |
++-------------------|-------------------------------------------------+
+                    |
+                    v
+          +----------------------------+
+          | Azure SQL Database         |
+          | SQL logical server         |
+          | Public access disabled     |
+          | Private endpoint access    |
+          +----------------------------+
 ```
 
-### Packet flow
+### Request flow
 
-1. The test VM sends a database connection to the PostgreSQL server's FQDN on TCP port `5432`.
-2. The VNet's configured DNS path resolves the server FQDN to the private database address.
-3. Traffic stays on the private Azure network path to the PostgreSQL Flexible Server.
-4. PostgreSQL authenticates the database user and returns the query result.
+1. The browser accesses the Web App Service's HTTPS URL.
+2. The Web App Service code receives a request to `/health/db`.
+3. The code connects to the SQL logical server's normal FQDN, such as `myserver.database.windows.net`, on TCP port `1433`.
+4. App Service VNet Integration routes supported outbound traffic through the integration subnet into `vnet-app-integration`.
+5. Private DNS resolves the SQL FQDN through the Private Link DNS configuration to the private endpoint address.
+6. The Azure SQL Private Endpoint carries the connection to the SQL Database.
+7. The query result returns to the Web App Service and is displayed in the health response.
 
-**Evidence goal:** DNS resolves privately, the client VM can run a SQL query, and the server's networking configuration confirms private VNet access.
+The Web App Service is still an App Service resource outside the VNet's address space. The **outbound path** is integrated; the service is not VNet-injected.
 
 ---
 
 ## 4. Resource plan
 
-This example uses **Central India**. Confirm service availability and capacity for your subscription before deploying.
+Example region: **Central India**. Verify regional support, quota and SKU availability before creating resources.
 
-| Resource | Name | Example configuration |
+| Resource | Name | Example |
 |---|---|---|
-| Resource group | `rg-vnet-injection-demo` | Central India |
-| Virtual network | `vnet-injection-demo` | `10.40.0.0/16` |
-| PostgreSQL subnet | `snet-postgres` | `10.40.1.0/24`, delegated |
-| Client subnet | `snet-client` | `10.40.2.0/24` |
-| Private DNS zone | Created/selected by PostgreSQL private networking wizard | Linked to `vnet-injection-demo` |
-| PostgreSQL Flexible Server | `pg-injection-demo-<unique>` | Private VNet access |
-| Test VM | `vm-injection-client` | Ubuntu; no public IP preferred |
+| Resource group | `rg-app-vnet-integration` | Central India |
+| VNet | `vnet-app-integration` | `10.50.0.0/16` |
+| Integration subnet | `snet-appservice-integration` | `10.50.1.0/26`, delegated |
+| Private Endpoint subnet | `snet-private-endpoints` | `10.50.2.0/24` |
+| Private DNS zone | `privatelink.database.windows.net` | Linked to VNet |
+| SQL logical server | `sql-vnet-demo-<unique>` | Public network access disabled after PE setup |
+| SQL database | `sqldb-vnet-demo` | Small demo database |
+| App Service plan | `asp-vnet-outbound-demo` | SKU supporting VNet Integration |
+| Web App Service | `web-vnet-outbound-<unique>` | Linux / Python |
+| Application | Flask DB health endpoint | Query SQL over private connectivity |
 
-These are example IP ranges. Ensure they do not overlap with existing VNets, VPN address spaces, or on-premises networks.
+Use a globally unique Web App Service and SQL server name. The example CIDRs must not overlap with existing VNets, VPN networks, or on-premises ranges.
 
 ### Prerequisites
 
-- Azure subscription with permission to create VNets, subnets, VMs, PostgreSQL Flexible Server, and DNS resources.
-- A region and subscription that support the selected PostgreSQL private networking configuration.
-- An approved private administration method such as Azure Bastion or an existing private jump host.
-- Secure handling for administrator and database credentials.
-- Budget awareness: VM and PostgreSQL resources can incur charges while running.
+- Azure subscription and permissions to create App Service, SQL, networking, Private Endpoint and DNS resources.
+- App Service plan/SKU that supports regional VNet Integration.
+- An Azure SQL configuration that supports Private Link.
+- A secure approach for database credentials; do not commit secrets to source control.
+- Budget awareness: App Service plan, SQL Database and network resources can incur charges.
 
 ---
 
-## 5. Create the resource group and VNet in Azure Portal
+## 5. Create the resource group and VNet
 
-### 5.1 Resource group
+### 5.1 Create resource group
 
 1. Open [Azure Portal](https://portal.azure.com/).
 2. Search **Resource groups** → **Create**.
-3. Choose your subscription.
-4. Name: `rg-vnet-injection-demo`.
-5. Region: **Central India**.
+3. Select the subscription.
+4. Name: `rg-app-vnet-integration`.
+5. Region: Central India.
 6. Select **Review + create** → **Create**.
 
 ### 5.2 Create the VNet
 
 1. Search **Virtual networks** → **Create**.
-2. Select `rg-vnet-injection-demo`.
-3. Name: `vnet-injection-demo`.
+2. Resource group: `rg-app-vnet-integration`.
+3. Name: `vnet-app-integration`.
 4. Region: Central India.
-5. Address space: `10.40.0.0/16`.
-6. Create these subnets:
-   - `snet-postgres`: `10.40.1.0/24`
-   - `snet-client`: `10.40.2.0/24`
-7. Select **Review + create** → **Create**.
+5. Address space: `10.50.0.0/16`.
+6. Create:
+   - `snet-appservice-integration`: `10.50.1.0/26` (example; verify the current App Service integration subnet sizing requirements for your plan and scale).
+   - `snet-private-endpoints`: `10.50.2.0/24`.
+7. Create the VNet.
 
-### 5.3 Delegate the database subnet
+### 5.3 Delegate the integration subnet
 
-1. Open `vnet-injection-demo` → **Subnets**.
-2. Open `snet-postgres`.
-3. Under **Subnet delegation**, select `Microsoft.DBforPostgreSQL/flexibleServers`.
+1. Open `vnet-app-integration` → **Subnets**.
+2. Select `snet-appservice-integration`.
+3. Set **Subnet delegation** to `Microsoft.Web/serverFarms`.
 4. Save.
 
-Do not place the test VM in `snet-postgres`. The database subnet is dedicated to PostgreSQL Flexible Server and must not be shared with unrelated workloads.
+This subnet must be dedicated to App Service VNet Integration. Do not place VMs or Private Endpoint NICs in it.
 
-Keep `snet-client` separate. It does not need the PostgreSQL delegation.
-
----
-
-## 6. Create PostgreSQL Flexible Server with private VNet access
-
-> Portal labels and available choices can change. Use the private VNet access option supported for PostgreSQL Flexible Server in your region, and follow current Microsoft documentation.
-
-1. Search **Azure Database for PostgreSQL flexible servers**.
-2. Select **Create**.
-3. On **Basics**:
-   - Resource group: `rg-vnet-injection-demo`
-   - Server name: `pg-injection-demo-<unique>`
-   - Region: Central India
-   - PostgreSQL version: choose a currently supported version
-   - Compute/storage: choose an appropriate lab size
-   - Configure administrator credentials securely
-4. On **Networking**:
-   - Select **Private access (VNet Integration)** / private VNet access (portal wording may vary).
-   - VNet: `vnet-injection-demo`
-   - Subnet: `snet-postgres`
-   - Private DNS zone: create or select the zone required by the wizard.
-   - Ensure the private DNS zone is linked to `vnet-injection-demo`.
-   - Do not enable public network access for this private-only lab.
-5. Review + create.
-6. Wait for deployment to complete.
-
-### Capture this evidence
-
-Open the PostgreSQL Flexible Server resource and record:
-
-- Server name and provisioning state.
-- Networking mode.
-- VNet and delegated subnet.
-- Private DNS zone.
-- Server FQDN.
-- Private address details, if displayed.
-
-**Proof checkpoint A:** The database server is deployed with private VNet access, using the dedicated PostgreSQL-delegated subnet. This is the central VNet injection/private deployment concept in the demo.
+Keep `snet-private-endpoints` separate. A Private Endpoint subnet generally should not be delegated to `Microsoft.Web/serverFarms`.
 
 ---
 
-## 7. Create a client VM inside the VNet
+## 6. Create Azure SQL Database
 
-The client VM is a testing tool, not part of the database injection mechanism.
+1. Search **SQL databases** → **Create**.
+2. Select or create the SQL logical server.
+3. Use resource group `rg-app-vnet-integration`.
+4. Database name: `sqldb-vnet-demo`.
+5. Choose a lab-appropriate compute/service tier.
+6. Configure an administrator and authentication according to your security policy.
+7. Complete deployment.
 
-1. Search **Virtual machines** → **Create**.
-2. Basics:
-   - Resource group: `rg-vnet-injection-demo`
-   - Name: `vm-injection-client`
-   - Region: Central India
-   - Image: Ubuntu Server 24.04 LTS or another approved Ubuntu image
-   - Select an appropriate small lab size
-   - Configure SSH key or approved authentication
-3. Networking:
-   - VNet: `vnet-injection-demo`
-   - Subnet: `snet-client`
-   - Public IP: **None preferred**
-   - Configure the NIC/subnet NSG according to your policy.
-4. Create the VM.
-5. Connect using Azure Bastion or your approved private administration path.
+For a private-only target, configure the Private Endpoint and verify connectivity before disabling public access if your workflow requires it. Then disable public network access and verify the app still works through the private path.
 
-If Bastion is needed, deploy it using the current Azure Bastion requirements. Bastion is for administrative access; it is not the database connection path being demonstrated.
+### Create a teaching table
 
----
+Connect to the database using an approved administration path, such as Azure Data Studio/SQL Server Management Studio from an authorized workstation with permitted access, or a controlled admin environment.
 
-## 8. Install a PostgreSQL client
-
-On `vm-injection-client`, install the PostgreSQL client using an approved outbound package repository path:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y postgresql-client dnsutils netcat-openbsd
-```
-
-If the VM has no outbound package access, use your organization's approved repository/mirror or provisioning method. Do not add a public IP or broad inbound rules just to make the database test work.
-
----
-
-## 9. Prove private DNS resolution
-
-From the client VM, use the FQDN shown in the PostgreSQL portal. Replace the placeholder:
-
-```bash
-DB_HOST="pg-injection-demo-<unique>.<region>.postgres.database.azure.com"
-getent hosts "$DB_HOST"
-```
-
-You can also try:
-
-```bash
-nslookup "$DB_HOST"
-```
-
-Expected: the server name resolves through the configured private DNS path to a private address for this private VNet deployment.
-
-Do not guess the DNS zone name or record format. Use the actual server FQDN and the zone configured by the PostgreSQL networking wizard.
-
-### Verify the DNS zone in the portal
-
-1. Open the private DNS zone selected for the server.
-2. Open **Virtual network links**.
-3. Confirm there is a link to `vnet-injection-demo`.
-4. Open **Record sets** and verify the database record as applicable.
-
-A DNS result alone does not prove the database accepts connections. Continue to the SQL test.
-
----
-
-## 10. Connect to PostgreSQL and run a query
-
-Use the server FQDN, database name, and credentials configured during server creation. Do not place a password directly in shell history or commit it to a file.
-
-A typical interactive command is:
-
-```bash
-psql "host=<SERVER_FQDN> port=5432 dbname=postgres user=<ADMIN_USER> sslmode=require"
-```
-
-Enter the password when prompted. Depending on the server configuration and authentication mode, the username format may need to follow the portal's displayed requirements.
-
-Once connected, run:
+Run:
 
 ```sql
-SELECT version();
-SELECT current_database();
-SELECT inet_server_addr();
-```
-
-The precise output of `inet_server_addr()` depends on the server's networking implementation. Treat it as supplemental evidence; the primary proof is the configured private networking mode, private DNS resolution, and successful SQL query.
-
-Create a teaching database and table:
-
-```sql
-CREATE DATABASE injectiondemo;
-```
-
-Exit and reconnect to the `injectiondemo` database, then run:
-
-```sql
-CREATE TABLE IF NOT EXISTS demo_status (
-    id integer PRIMARY KEY,
-    message text NOT NULL
+CREATE TABLE dbo.DemoStatus (
+    Id int NOT NULL PRIMARY KEY,
+    Message nvarchar(200) NOT NULL
 );
 
-INSERT INTO demo_status (id, message)
-VALUES (1, 'Database reached through private VNet connectivity')
-ON CONFLICT (id) DO UPDATE SET message = EXCLUDED.message;
+IF EXISTS (SELECT 1 FROM dbo.DemoStatus WHERE Id = 1)
+    UPDATE dbo.DemoStatus
+       SET Message = N'Azure SQL reached over App Service VNet Integration'
+     WHERE Id = 1;
+ELSE
+    INSERT INTO dbo.DemoStatus (Id, Message)
+    VALUES (1, N'Azure SQL reached over App Service VNet Integration');
 
-SELECT * FROM demo_status;
+SELECT * FROM dbo.DemoStatus;
 ```
 
-Expected: the final query returns the row with the message:
+Use a least-privilege SQL user for the application. Prefer Microsoft Entra authentication or a managed identity-based approach where supported by your selected driver and application design. The sample below uses SQL credentials for straightforward teaching; protect them as secrets.
+
+---
+
+## 7. Create an Azure SQL Private Endpoint
+
+1. Search **Private endpoints** → **Create**.
+2. Resource group: `rg-app-vnet-integration`.
+3. Name: `pe-sql-vnet-demo`.
+4. Region: Central India.
+5. Resource:
+   - Connect to an Azure resource in your directory.
+   - Resource type: `Microsoft.Sql/servers`.
+   - Select the SQL logical server created above.
+   - Target sub-resource: `sqlServer`.
+6. Virtual network:
+   - VNet: `vnet-app-integration`.
+   - Subnet: `snet-private-endpoints`.
+7. DNS:
+   - Integrate with private DNS.
+   - Select/create `privatelink.database.windows.net`.
+   - Ensure the zone is linked to `vnet-app-integration`.
+8. Review + create → Create.
+9. Open the Private Endpoint and verify provisioning state is **Succeeded** and connection state is **Approved**.
+
+### DNS check
+
+The application should connect using the normal SQL FQDN:
 
 ```text
-Database reached through private VNet connectivity
+sql-vnet-demo-<unique>.database.windows.net
 ```
 
-Use an appropriately privileged account for setup and a least-privilege account for application access.
+Private DNS provides the private resolution path for the endpoint. Do not hard-code the endpoint IP into the application connection string. Verify the record and VNet link in the portal.
 
 ---
 
-## 11. Evidence checklist
+## 8. Create the Azure Web App Service
 
-Capture screenshots or terminal output from your real Azure environment:
+1. Search **App Services** → **Create** → **Web App**.
+2. Basics:
+   - Resource group: `rg-app-vnet-integration`
+   - Name: `web-vnet-outbound-<unique>`
+   - Publish: Code
+   - Runtime: a supported Python version
+   - OS: Linux
+   - Region: Central India
+3. Create App Service plan `asp-vnet-outbound-demo`.
+4. Select a plan/SKU that supports regional VNet Integration. Do not assume Free or Shared plans support it.
+5. Review + create → Create.
 
-- [ ] Resource group overview showing the lab resources.
-- [ ] VNet overview showing `10.40.0.0/16`.
-- [ ] Subnet configuration showing `snet-postgres` delegation to `Microsoft.DBforPostgreSQL/flexibleServers`.
-- [ ] PostgreSQL Flexible Server Overview showing provisioning succeeded.
-- [ ] PostgreSQL Networking blade showing private VNet access, VNet and subnet.
-- [ ] Private DNS zone and its VNet link.
-- [ ] DNS lookup from `vm-injection-client` showing private resolution.
-- [ ] Successful `psql` connection and `SELECT version();`.
-- [ ] Successful query showing the row inserted into `demo_status`.
-- [ ] PostgreSQL networking settings showing public network access is not enabled for this design.
-- [ ] VNet subnet list showing no App Service integration subnet was created.
-- [ ] Resource inventory confirming no App Service VNet Integration or Private Endpoint was used.
+### Configure VNet Integration
 
-Redact subscription IDs, tenant IDs, usernames, server names if sensitive, public IPs, passwords, tokens, and other sensitive information before sharing.
+1. Open the Web App Service.
+2. Navigate to **Networking** → **VNet Integration** (the portal location may vary).
+3. Select **Add VNet** / **Configure VNet Integration**.
+4. Choose `vnet-app-integration`.
+5. Select `snet-appservice-integration`.
+6. Save and wait until the integration is connected.
 
-## 12. What proves VNet injection without VNet Integration?
+**Do not select `snet-private-endpoints`.** App Service Integration requires its own delegated subnet.
 
-| Claim | Evidence |
-|---|---|
-| Database uses private VNet deployment | PostgreSQL Networking blade shows private VNet access and selected VNet/subnet |
-| Correct subnet delegation is configured | `snet-postgres` delegates to `Microsoft.DBforPostgreSQL/flexibleServers` |
-| Client uses private DNS | FQDN lookup resolves through the linked private DNS configuration to a private address |
-| Private database path works | `psql` connects and SQL query returns the expected row |
-| Database is not publicly exposed in this design | Portal shows public network access disabled |
-| App Service VNet Integration is not used | No App Service resource or `Microsoft.Web/serverFarms` integration subnet exists |
-| Private Endpoint is not used | No Private Endpoint resource exists for this connection |
+### Configure application settings
 
-The strongest proof combines the portal configuration with successful DNS and SQL tests. Do not claim a live deployment until you have captured actual evidence.
+Open the Web App Service's **Settings → Environment variables** (or **Configuration** in some portal experiences) and add:
 
----
+- `SQL_SERVER`: SQL logical server FQDN, e.g. `sql-vnet-demo-<unique>.database.windows.net`
+- `SQL_DATABASE`: `sqldb-vnet-demo`
+- `SQL_USER`: least-privilege SQL user
+- `SQL_PASSWORD`: store as an approved secret or Key Vault reference; do not commit it to Git
+- `SQL_DRIVER`: `ODBC Driver 18 for SQL Server` (if using the sample below)
 
-## 13. Troubleshooting
-
-### Subnet cannot be selected
-
-- Confirm `snet-postgres` is delegated to `Microsoft.DBforPostgreSQL/flexibleServers`.
-- Confirm the subnet is not already used by incompatible resources.
-- Check region support, subscription restrictions, address capacity, and current service requirements.
-
-### DNS resolves publicly or does not resolve
-
-- Verify you are using the exact FQDN shown in the PostgreSQL portal.
-- Confirm the correct private DNS zone was selected.
-- Verify the zone has a VNet link to `vnet-injection-demo`.
-- Check whether the VM uses a custom DNS server or DNS forwarder.
-- Wait for DNS cache expiry after changing records or links.
-
-### `psql` connection times out
-
-1. Verify the database provisioning state is succeeded.
-2. Confirm the client VM is in `vnet-injection-demo`.
-3. Confirm DNS resolves to the expected private address.
-4. Check NSGs, routes, and firewall policy.
-5. Check the database subnet and private access configuration.
-6. Verify TCP `5432` is allowed where required.
-7. Confirm the client is using the actual FQDN and correct port.
-
-### Authentication fails
-
-- Verify the administrator/user name and password.
-- Check whether the account uses password or an alternative supported authentication method.
-- Confirm the database user has access to the requested database.
-- Do not work around an authentication failure by enabling public database access.
-
-### Cannot install the client package
-
-The VM may not have outbound access to package repositories. Use an approved package mirror, image, or provisioning process. This is separate from the private database network path.
+Save and restart if the portal asks you to.
 
 ---
 
-## 14. Production hardening
+## 9. Deploy a Flask connectivity demo
 
-- [ ] Use private VNet access where required by the security design.
-- [ ] Keep the PostgreSQL subnet dedicated and correctly delegated.
-- [ ] Review subnet size, service limits, and regional availability.
-- [ ] Use TLS and secure certificate validation.
-- [ ] Use least-privilege database accounts and managed/approved secret storage.
-- [ ] Configure private DNS ownership, links, and any custom DNS forwarding.
-- [ ] Restrict administrative access to Bastion or an approved private path.
-- [ ] Configure backups, restore testing, patching, maintenance, and disaster recovery.
-- [ ] Enable appropriate monitoring, diagnostic logs, alerting, and retention.
-- [ ] Review network security rules and routing with your network/security team.
-- [ ] Test failure, recovery, and operational runbooks before production approval.
-- [ ] Review costs and delete the lab when finished.
+The endpoint will query `dbo.DemoStatus` and return the result. It is a teaching example, not a complete production application.
+
+### `requirements.txt`
+
+```text
+Flask
+gunicorn
+pyodbc
+```
+
+**ODBC prerequisite:** `pyodbc` needs Microsoft ODBC Driver 18 for SQL Server installed in the runtime. For Azure App Service, use a supported custom container or a deployment/runtime setup that explicitly includes the driver. A plain Python runtime may not include it. If you use a custom container, install the driver using Microsoft's current Linux instructions and set the App Service container configuration accordingly.
+
+### `app.py`
+
+```python
+import os
+import logging
+from flask import Flask, jsonify
+import pyodbc
+
+app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def get_connection():
+    required = ["SQL_SERVER", "SQL_DATABASE", "SQL_USER", "SQL_PASSWORD"]
+    missing = [name for name in required if not os.getenv(name)]
+    if missing:
+        raise RuntimeError("Missing required SQL application settings: " + ", ".join(missing))
+
+    driver = os.getenv("SQL_DRIVER", "ODBC Driver 18 for SQL Server")
+    connection_string = (
+        f"DRIVER={{{driver}}};"
+        f"SERVER=tcp:{os.environ['SQL_SERVER']},1433;"
+        f"DATABASE={os.environ['SQL_DATABASE']};"
+        f"UID={os.environ['SQL_USER']};"
+        f"PWD={os.environ['SQL_PASSWORD']};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "Connection Timeout=8;"
+    )
+    return pyodbc.connect(connection_string)
+
+@app.get("/")
+def home():
+    return """
+    <h1>Azure App Service VNet Integration Demo</h1>
+    <p>This Web App Service is not VNet-injected.</p>
+    <p>Try <a href="/health/db">/health/db</a> to test Azure SQL private connectivity.</p>
+    """
+
+@app.get("/health/db")
+def database_health():
+    try:
+        with get_connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT Message FROM dbo.DemoStatus WHERE Id = ?", 1)
+            row = cursor.fetchone()
+
+        if row:
+            return jsonify(
+                status="connected",
+                message=row[0],
+                path="App Service -> VNet Integration -> Azure SQL Private Endpoint"
+            ), 200
+
+        return jsonify(status="connected", message="SQL connection succeeded; demo row not found"), 200
+
+    except Exception:
+        # Keep connection details and credentials out of public responses.
+        app.logger.exception("Azure SQL health query failed")
+        return jsonify(status="error", message="Database check failed; inspect application logs"), 503
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
+```
+
+### Startup command
+
+Configure the startup command for the selected App Service runtime:
+
+```bash
+gunicorn --bind 0.0.0.0:8000 app:app
+```
+
+The deployed application root must contain `app.py` and `requirements.txt`. For a standard Python App Service, confirm the supported startup and dependency behavior. Because `pyodbc` requires a native ODBC driver, a custom container with the driver installed is the most predictable teaching approach.
+
+### Deploy
+
+Use Deployment Center, a CI/CD pipeline, or a supported ZIP deployment. Example CLI for a prepared `app.zip`:
+
+```bash
+az login
+az account set --subscription "<SUBSCRIPTION_ID>"
+az webapp deploy \
+  --resource-group rg-app-vnet-integration \
+  --name "<YOUR_WEB_APP_NAME>" \
+  --src-path app.zip \
+  --type zip
+```
+
+Create the archive so `app.py` and `requirements.txt` are at its root. For custom containers, deploy the image and configure the container settings instead.
 
 ---
 
-## 15. Cleanup
+## 10. End-to-end verification
+
+### Test 1 — Browser access
+
+Open the Web App Service **Overview** page and select its **Default domain**.
+
+Expected: the landing page loads over HTTPS. In this demo, inbound access is public by design for easier teaching. This does not prove the database path.
+
+### Test 2 — Query Azure SQL through VNet Integration
+
+Open:
+
+```text
+https://<YOUR_WEB_APP_NAME>.azurewebsites.net/health/db
+```
+
+Expected response:
+
+```json
+{
+  "status": "connected",
+  "message": "Azure SQL reached over App Service VNet Integration",
+  "path": "App Service -> VNet Integration -> Azure SQL Private Endpoint"
+}
+```
+
+The exact JSON formatting may vary. The key proof is HTTP `200` and the message returned from the SQL table.
+
+### Test 3 — Verify the integration subnet
+
+1. Open the Web App Service → **Networking** → **VNet Integration**.
+2. Capture the connected VNet and integration subnet.
+3. Open the VNet → **Subnets**.
+4. Capture the subnet delegation to `Microsoft.Web/serverFarms`.
+
+### Test 4 — Verify the Private Endpoint
+
+1. Open `pe-sql-vnet-demo`.
+2. Capture provisioning state and connection state.
+3. Open its network interface and record the private IP.
+4. Open the Private DNS zone `privatelink.database.windows.net`.
+5. Confirm the VNet link and relevant DNS record.
+
+### Test 5 — Verify SQL is private-only
+
+1. Open the SQL logical server → **Networking**.
+2. Confirm the Private Endpoint is configured and approved.
+3. Confirm public network access is disabled after private connectivity has been validated.
+4. From the Web App Service, repeat `/health/db`; it should continue returning HTTP `200`.
+
+### Test 6 — Prove the Web App Service is not VNet-injected
+
+Capture the following together:
+
+- Web App Service Overview and its App Service plan.
+- VNet Integration blade showing the selected VNet/subnet.
+- VNet subnet page showing `Microsoft.Web/serverFarms` delegation.
+- Architecture/resource inventory showing the Web App Service is an App Service resource, not a VM or service deployed as a resource inside the VNet.
+- Azure SQL private endpoint and successful query evidence.
+
+**Interpretation:** Integration is an outbound networking feature for App Service. The Web App Service is not deployed into the integration subnet; the subnet supplies the network path.
+
+---
+
+## 11. Troubleshooting
+
+### `/health/db` returns `503`
+
+1. Open Web App Service → **Monitoring → Log stream** or supported application logs.
+2. Verify all `SQL_*` settings and the server FQDN.
+3. Confirm VNet Integration is connected to `vnet-app-integration`.
+4. Confirm `snet-appservice-integration` is delegated to `Microsoft.Web/serverFarms`.
+5. Confirm the Private Endpoint is approved and provisioned.
+6. Verify `privatelink.database.windows.net` is linked to the VNet and the DNS record is correct.
+7. Confirm the SQL database, table, user, and password are correct.
+8. Check outbound routes, NSGs, firewalls, and SQL networking configuration.
+
+### DNS does not resolve privately
+
+- Use the normal SQL FQDN (`<server>.database.windows.net`), not a hard-coded private IP.
+- Confirm the Private DNS zone name is `privatelink.database.windows.net`.
+- Confirm the VNet link exists.
+- Check custom DNS, forwarding rules, and DNS caching.
+- Use App Service supported diagnostics where available; a local VM's DNS result does not alone prove the Web App Service uses the same path.
+
+### ODBC driver error
+
+- `pyodbc` requires a compatible native ODBC driver.
+- Use a supported custom container with Microsoft ODBC Driver 18 installed, or another supported database driver/runtime combination.
+- Do not assume the standard Python App Service image has the ODBC driver installed.
+
+### Timeout or connection refused
+
+- Confirm SQL Private Endpoint provisioning and approval.
+- Verify the server's public network access setting and private endpoint.
+- Check DNS resolution from the App Service environment where supported.
+- Review routes, NSGs, firewalls, and App Service plan compatibility.
+- Verify TCP 1433 is permitted along the private path.
+
+---
+
+## 12. Evidence checklist
+
+Save screenshots and test output from the actual deployment:
+
+- [ ] Resource group resource inventory.
+- [ ] VNet address space and subnet list.
+- [ ] Integration subnet delegation to `Microsoft.Web/serverFarms`.
+- [ ] Web App Service VNet Integration blade showing connected state.
+- [ ] Azure SQL Private Endpoint overview showing Succeeded/Approved.
+- [ ] Private Endpoint NIC showing its private IP.
+- [ ] Private DNS zone and VNet link.
+- [ ] SQL networking page showing public access disabled.
+- [ ] Successful `/health/db` response with HTTP `200` and the database message.
+- [ ] Application log evidence of a successful query (without secrets).
+- [ ] Resource inventory confirming no App Service VNet injection and no PostgreSQL delegated subnet was used.
+
+Redact subscription IDs, tenant IDs, credentials, tokens, and other sensitive details before sharing.
+
+## 13. Production readiness
+
+- [ ] Use a supported App Service plan and integration subnet size.
+- [ ] Keep the integration subnet dedicated and delegated correctly.
+- [ ] Use private endpoints and private DNS for private SQL access.
+- [ ] Disable SQL public network access where required by the security design.
+- [ ] Use managed identity and Microsoft Entra authentication where supported; otherwise use a secure secret store.
+- [ ] Validate TLS certificates; do not set `TrustServerCertificate=yes` as a shortcut.
+- [ ] Apply least-privilege database permissions.
+- [ ] Review custom DNS, outbound routes, forced tunneling, and egress firewall policy.
+- [ ] Enable logs, metrics, alerts, and retention.
+- [ ] Test scale-out, deployment rollback, SQL failover, and recovery.
+- [ ] Review costs and remove resources after the lab.
+
+## 14. Cleanup
 
 1. Save the evidence pack.
-2. Open **Resource groups** → `rg-vnet-injection-demo`.
-3. Select **Delete resource group**.
-4. Type the resource group name and confirm.
+2. Open **Resource groups** → `rg-app-vnet-integration`.
+3. Select **Delete resource group** and confirm.
 
-Only delete the dedicated lab resource group if it contains no shared resources. If you reused a shared VNet, DNS zone, or other resource, delete only the lab resources you created.
+Only delete the dedicated lab resource group if it contains no shared resources. Delete only lab resources if any shared VNet or DNS zone was reused.
 
----
+## 15. Official Microsoft documentation
 
-## 16. Official Microsoft references
+- [App Service VNet Integration overview](https://learn.microsoft.com/en-us/azure/app-service/overview-vnet-integration)
+- [Configure regional VNet Integration](https://learn.microsoft.com/en-us/azure/app-service/configure-vnet-integration-enable)
+- [Azure SQL Private Link and private endpoints](https://learn.microsoft.com/en-us/azure/azure-sql/database/private-endpoint-overview)
+- [Private DNS zones for Azure Private Endpoint](https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns)
 
-- [Private networking for Azure Database for PostgreSQL Flexible Server](https://learn.microsoft.com/en-us/azure/postgresql/network/concepts-networking-private)
-- [Azure Database for PostgreSQL Flexible Server documentation](https://learn.microsoft.com/en-us/azure/postgresql/)
-- [Azure Virtual Network overview](https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview)
-- [Azure Private Endpoint overview — comparison reference](https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview)
-
-Review current documentation for supported regions, subnet delegation, DNS behavior, portal labels, and service limits before deployment.
+Verify current regional support, plan/SKU requirements, subnet sizing, portal labels, and database driver installation requirements before deployment.
 
 ---
 
-## 17. Lab completion record
+## 16. Lab completion record
 
-Fill in after completing the lab:
-
-- Resource group: `rg-vnet-injection-demo`
+- Resource group: `rg-app-vnet-integration`
 - Region: `Central India`
-- VNet: `vnet-injection-demo`
-- PostgreSQL server: `________________`
-- PostgreSQL FQDN: `________________`
-- Delegated subnet: `snet-postgres`
-- Private DNS zone: `________________`
-- DNS lookup result/private IP: `________________`
-- SQL connection successful: `Yes / No`
-- Demo table query successful: `Yes / No`
-- Public database access disabled: `Yes / No`
-- App Service VNet Integration used: `No`
-- Private Endpoint used: `No`
-- Evidence folder/location: `________________`
+- Web App Service: `________________`
+- App Service plan/SKU: `________________`
+- VNet Integration status: `________________`
+- Integration subnet: `snet-appservice-integration`
+- Subnet delegation: `Microsoft.Web/serverFarms`
+- SQL server FQDN: `________________`
+- Private Endpoint IP: `________________`
+- Private DNS zone/VNet link: `________________`
+- SQL public network access disabled: `Yes / No`
+- `/health/db` status: `________________`
+- Query result: `________________`
+- App Service VNet-injected: `No`
+- App Service VNet Integration configured: `Yes`
 
 ### Pass condition
 
-The PostgreSQL Flexible Server is configured for private VNet access in its dedicated delegated subnet; the client VM resolves its FQDN to a private address and successfully executes SQL; public database access is disabled for the private-only design; and the lab uses neither App Service VNet Integration nor a Private Endpoint.
+The Web App Service shows successful regional VNet Integration to the dedicated delegated subnet; Azure SQL is reached through its Private Endpoint and private DNS; `/health/db` returns HTTP `200` with the database row; and the Web App Service itself is not VNet-injected.
 
-**Final teaching takeaway:** In this demo, VNet injection/private VNet deployment is the database's network placement model. There is no App Service VNet Integration. The VM is simply a private client used to validate DNS and database connectivity.
+**Final teaching takeaway:** This is **VNet Integration without VNet injection**. The App Service remains outside the VNet's resource address space, while its supported outbound traffic can reach private resources through the integration subnet.
