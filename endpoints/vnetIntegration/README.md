@@ -264,6 +264,7 @@ Open the Web App Service's **Settings → Environment variables** (or **Configur
 - `SQL_USER`: least-privilege SQL user
 - `SQL_PASSWORD`: store as an approved secret or Key Vault reference; do not commit it to Git
 - `SQL_DRIVER`: `ODBC Driver 18 for SQL Server` (if using the sample below)
+- `SCM_DO_BUILD_DURING_DEPLOYMENT` : `true`
 
 Save and restart if the portal asks you to.
 
@@ -364,11 +365,7 @@ Use Deployment Center, a CI/CD pipeline, or a supported ZIP deployment. Example 
 ```bash
 az login
 az account set --subscription "<SUBSCRIPTION_ID>"
-az webapp deploy \
-  --resource-group rg-app-vnet-integration \
-  --name "<YOUR_WEB_APP_NAME>" \
-  --src-path app.zip \
-  --type zip
+az webapp deploy  --resource-group rg-app-vnet-integration    --name web-vnet-outbound    --src-path app.zip    --type zip --track-status false
 ```
 
 Create the archive so `app.py` and `requirements.txt` are at its root. For custom containers, deploy the image and configure the container settings instead.
