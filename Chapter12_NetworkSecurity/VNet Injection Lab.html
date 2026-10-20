@@ -1,0 +1,547 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>VNet Injection Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a network-lab console. Topology diagram on the left, test bench on the right, then reference material below. */
+:root{
+  --paper:#eef3f6; --surface:#ffffff; --ink:#13212c; --muted:#56687a; --line:#c6d3dd;
+  --accent:#0b6b88; --accent-soft:#dcedf3;
+  --vnet:#e3f0ee; --vnet-line:#7fb3ab; --paas:#e9edf4; --paas-line:#a9b6c9; --subnet:#f4faf9;
+  --pass:#1b7a48; --fail:#bf3426; --warn:#a86300; --block:#1b7a48;
+  --pass-soft:#e2f2e9; --fail-soft:#fbe6e3; --warn-soft:#fbefdc;
+  --term:#0f1b24; --term-ink:#d6e5ee; --term-dim:#7f97a8;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0c1318; --surface:#131d25; --ink:#e2ebf1; --muted:#8fa2b1; --line:#283844;
+  --accent:#4db6d3; --accent-soft:#16303a;
+  --vnet:#10252a; --vnet-line:#3b7c73; --paas:#151f2b; --paas-line:#3d4c61; --subnet:#0f1e22;
+  --pass:#4cc283; --fail:#ff6d5d; --warn:#f0a53a; --block:#4cc283;
+  --pass-soft:#123222; --fail-soft:#3a1a17; --warn-soft:#3a2a12;
+  --term:#070d11; --term-ink:#d6e5ee; --term-dim:#6f8797; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0c1318; --surface:#131d25; --ink:#e2ebf1; --muted:#8fa2b1; --line:#283844;
+  --accent:#4db6d3; --accent-soft:#16303a;
+  --vnet:#10252a; --vnet-line:#3b7c73; --paas:#151f2b; --paas-line:#3d4c61; --subnet:#0f1e22;
+  --pass:#4cc283; --fail:#ff6d5d; --warn:#f0a53a; --block:#4cc283;
+  --pass-soft:#123222; --fail-soft:#3a1a17; --warn-soft:#3a2a12;
+  --term:#070d11; --term-ink:#d6e5ee; --term-dim:#6f8797; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:grid;gap:44px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(28px,4vw,42px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:26px;font-weight:600}
+h3{font-size:18px;font-weight:600}
+p{margin:0}
+code,.mono{font-family:var(--f-mono);font-size:.9em}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{max-width:68ch;color:var(--muted);font-size:17px}
+header{display:grid;gap:12px}
+.thesis{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:8px}
+.thesis div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:4px}
+.thesis b{font-family:var(--f-display);font-size:18px}
+.thesis span{color:var(--muted);font-size:14px}
+
+/* lab */
+.lab{display:grid;gap:14px}
+.modes{display:flex;flex-wrap:wrap;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px}
+.modes button{flex:1 1 180px;text-align:left;border:0;background:transparent;color:var(--ink);font:inherit;padding:10px 12px;border-radius:7px;cursor:pointer;display:grid;gap:2px}
+.modes button small{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+.modes button b{font-family:var(--f-display);font-weight:600;font-size:16px}
+.modes button:hover{background:var(--accent-soft)}
+.modes button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.modes button[aria-pressed="true"] small{color:var(--surface);opacity:.85}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.modedesc{color:var(--muted);max-width:90ch}
+.modedesc b{color:var(--ink)}
+.bench{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+@media (max-width:1000px){.bench{grid-template-columns:minmax(0,1fr)}}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:680px;height:auto}
+.side{display:grid;gap:14px;min-width:0}
+.tests{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px;display:grid;gap:2px}
+.tests .lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px}
+.test{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:0;background:transparent;color:var(--ink);font:inherit;text-align:left;padding:9px 10px;border-radius:7px;cursor:pointer}
+.test:hover{background:var(--accent-soft)}
+.test[aria-pressed="true"]{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.dir{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);width:44px;text-align:center}
+.test .t{font-weight:500;font-size:14px;line-height:1.3}
+.chip{font-family:var(--f-mono);font-size:11px;font-weight:500;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.chip.pass,.chip.block{background:var(--pass-soft);color:var(--pass)}
+.chip.fail{background:var(--fail-soft);color:var(--fail)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.result{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+.result .head{display:flex;gap:10px;align-items:flex-start}
+.result .head h3{font-size:19px}
+.term{background:var(--term);color:var(--term-ink);border-radius:8px;padding:12px 14px;font-family:var(--f-mono);font-size:12.5px;line-height:1.6;overflow-x:auto;white-space:pre}
+.term .p{color:var(--term-dim)}
+.result .why{font-size:14.5px}
+.result .sub{font-size:13px;color:var(--muted)}
+
+/* svg */
+.z-paas{fill:var(--paas);stroke:var(--paas-line)}
+.z-vnet{fill:var(--vnet);stroke:var(--vnet-line);stroke-width:1.5}
+.z-sub{fill:var(--subnet);stroke:var(--vnet-line);stroke-dasharray:4 3}
+.z-sub.on{stroke-dasharray:none}
+.zl{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.zt{font-family:var(--f-display);font-size:14px;font-weight:600;fill:var(--ink)}
+.nd rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
+.nd .n1{font-family:var(--f-body);font-size:12.5px;font-weight:600;fill:var(--ink)}
+.nd .n2{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
+.nd.app rect{stroke:var(--accent);stroke-width:2}
+.nd.dim{opacity:.38}
+.nd.dim rect{stroke-dasharray:4 3}
+.ln{fill:none;stroke:var(--muted);stroke-width:1.2}
+.ln.priv{stroke-dasharray:2 4}
+.ln.integ{stroke:var(--accent);stroke-width:2;stroke-dasharray:7 4}
+.ln.pe{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:2 4}
+.ll{font-family:var(--f-mono);font-size:10.5px;fill:var(--accent)}
+.lm{font-family:var(--f-mono);font-size:10.5px;fill:var(--muted)}
+.route{fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.route.pass,.route.block{stroke:var(--pass)}
+.route.warn{stroke:var(--warn)}
+.route.fail{stroke:var(--fail);stroke-dasharray:8 6}
+.route.ants{stroke-dasharray:10 7;animation:ants 1s linear infinite}
+@keyframes ants{to{stroke-dashoffset:-17}}
+.dot.pass,.dot.block{fill:var(--pass)} .dot.warn{fill:var(--warn)} .dot.fail{fill:var(--fail)}
+.xm{stroke-width:3.2;stroke-linecap:round}
+.xm.fail{stroke:var(--fail)} .xm.block{stroke:var(--pass)}
+.xbg{fill:var(--surface)}
+@media (prefers-reduced-motion:reduce){.route.ants{animation:none}}
+
+/* reference sections */
+section{display:grid;gap:16px}
+.sechead{display:grid;gap:6px;max-width:75ch}
+.sechead p{color:var(--muted)}
+.cant{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.cant > div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px;align-content:start}
+.cant ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.cant li::marker{color:var(--fail)}
+.cant .ok li::marker{color:var(--warn)}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:11px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+thead th{font-family:var(--f-mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--paper)}
+tbody th{font-weight:600;width:22%}
+td.c{text-align:center;white-space:nowrap}
+.steps{display:grid;gap:14px;counter-reset:s}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px;min-width:0}
+.step h3{display:flex;gap:10px;align-items:baseline}
+.step h3::before{counter-increment:s;content:counter(s);font-family:var(--f-mono);font-size:13px;color:var(--accent);border:1px solid var(--accent);border-radius:99px;width:24px;height:24px;display:inline-grid;place-items:center;flex:none}
+.step p{max-width:80ch}
+.codebox{position:relative;min-width:0}
+.codebox pre{margin:0;background:var(--term);color:var(--term-ink);border-radius:8px;padding:14px 16px;padding-top:34px;font-family:var(--f-mono);font-size:12.5px;line-height:1.6;overflow-x:auto}
+.codebox pre .c{color:var(--term-dim)}
+.copy{position:absolute;top:6px;right:6px;font:500 11px var(--f-mono);background:transparent;color:var(--term-ink);border:1px solid var(--term-dim);border-radius:5px;padding:3px 8px;cursor:pointer}
+.copy:hover{border-color:var(--term-ink)}
+.expect{font-size:14px;color:var(--muted)}
+.expect b{color:var(--ink)}
+.note{border-left:3px solid var(--warn);padding:4px 0 4px 12px;font-size:14px;color:var(--muted);max-width:80ch}
+.gotchas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.gotchas div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px;align-content:start}
+.gotchas div p{font-size:14px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Azure networking lab</div>
+  <h1>VNet Injection vs VNet Integration</h1>
+  <p class="lede">Switch between four setups of the same web app and fire six traffic tests at each. Watch which packets get through, which time out, and which leak to the internet. Then reproduce it all with the Azure CLI steps further down.</p>
+  <div class="thesis">
+    <div><b>VNet Integration</b><span>The app stays on shared Microsoft infrastructure. It gets a one-way door <em>out</em> into your VNet. Nothing can come <em>in</em> through it.</span></div>
+    <div><b>VNet Injection</b><span>The service's compute is deployed <em>into</em> a subnet of your VNet. It has a private IP, so traffic flows both in and out privately.</span></div>
+    <div><b>Private Endpoint</b><span>The separate add-on that gives a multi-tenant app a private <em>inbound</em> address. Integration and Private Endpoint are usually paired.</span></div>
+  </div>
+</header>
+
+<section class="lab" aria-label="Interactive lab">
+  <div class="modes" id="modes" role="group" aria-label="Network setup"></div>
+  <p class="modedesc" id="modedesc"></p>
+  <div class="bench">
+    <div class="diagram"><svg id="svg" viewBox="0 0 960 556" role="img" aria-label="Network topology"></svg></div>
+    <div class="side">
+      <div class="tests" id="tests" role="group" aria-label="Traffic tests"></div>
+      <div class="result" id="result" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sechead">
+    <div class="eyebrow">The short answer</div>
+    <h2>What an app cannot do</h2>
+  </div>
+  <div class="cant">
+    <div>
+      <h3>Without VNet Integration (outbound)</h3>
+      <ul>
+        <li>Call anything that only has a private IP: VMs, internal load balancers, AKS internal services</li>
+        <li>Reach Private Endpoints of SQL, Storage, Key Vault, Cosmos DB once their public access is off</li>
+        <li>Reach peered VNets or on-premises networks over VPN or ExpressRoute</li>
+        <li>Resolve names from Private DNS zones linked to your VNet</li>
+        <li>Send traffic through your NAT Gateway for a fixed outbound IP, or through Azure Firewall via a route table</li>
+        <li>Have its outbound traffic filtered by your NSGs</li>
+      </ul>
+    </div>
+    <div class="ok">
+      <h3>Even with VNet Integration (inbound)</h3>
+      <ul>
+        <li>Receive calls on a private IP. It still has none.</li>
+        <li>Hide from the internet. The public endpoint stays open.</li>
+        <li>Be protected by inbound NSG rules on the integration subnet</li>
+        <li>Be reached from on-premises over the VPN</li>
+        <li>Run on dedicated, single-tenant compute</li>
+      </ul>
+      <p class="expect">Fix inbound with a <b>Private Endpoint</b>, or skip both add-ons and use <b>VNet Injection</b>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sechead">
+    <div class="eyebrow">Results matrix</div>
+    <h2>Six tests, four setups</h2>
+    <p>The same results as the lab above, in one grid.</p>
+  </div>
+  <div class="tbl"><table id="matrix"></table></div>
+</section>
+
+<section>
+  <div class="sechead">
+    <div class="eyebrow">Reference</div>
+    <h2>Side by side</h2>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>VNet Integration (App Service regional)</th><th>VNet Injection (e.g. App Service Environment v3)</th></tr></thead>
+    <tbody>
+      <tr><th>Where the compute runs</th><td>Shared multi-tenant workers, outside your VNet</td><td>Inside a dedicated subnet of your VNet</td></tr>
+      <tr><th>Traffic direction</th><td>Outbound only</td><td>Inbound and outbound</td></tr>
+      <tr><th>Private inbound address</th><td>None. Add a Private Endpoint.</td><td>Yes. Internal load balancer IP in the subnet.</td></tr>
+      <tr><th>Public endpoint</th><td>Stays open until you disable public access or add access restrictions</td><td>Optional. An internal (ILB) deployment has no public IP.</td></tr>
+      <tr><th>NSG and route tables on the subnet</th><td>Apply to the app's outbound traffic only</td><td>Apply to inbound and outbound traffic</td></tr>
+      <tr><th>Subnet</th><td>Delegated to <code>Microsoft.Web/serverFarms</code>. /28 minimum, /26 recommended.</td><td>Delegated to <code>Microsoft.Web/hostingEnvironments</code>. /24 recommended.</td></tr>
+      <tr><th>Tenancy</th><td>Shared</td><td>Single-tenant</td></tr>
+      <tr><th>Cost and setup</th><td>Basic tier and up. Enabled in about a minute.</td><td>Isolated v2 pricing, billed for at least one instance. Deployment can take an hour or more.</td></tr>
+      <tr><th>Other services that work this way</th><td>Azure Functions (Premium, Flex Consumption, Dedicated), Logic Apps Standard, API Management Standard v2</td><td>SQL Managed Instance, AKS, API Management (Developer/Premium in a VNet), Azure Databricks, Container Apps environments with a custom VNet, Application Gateway, Azure Firewall, Bastion</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sechead">
+    <div class="eyebrow">Hands-on</div>
+    <h2>Reproduce it in your subscription</h2>
+    <p>Run these in Azure Cloud Shell (Bash) in one session so the variables persist. Each step moves the lab to the next setup and has a test that proves the change.</p>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <h3>Build the VNet and a private-only VM</h3>
+      <p>This VM is the "internal API". It has no public IP, so only something inside the VNet can reach it.</p>
+      <div class="codebox"><button class="copy">Copy</button><pre>RG=rg-vnetdemo; LOC=centralindia; APP=app-vnetdemo-$RANDOM; echo $APP
+az group create -n $RG -l $LOC
+az network vnet create -g $RG -n vnet-demo --address-prefix 10.0.0.0/16 \
+  --subnet-name snet-vm --subnet-prefixes 10.0.1.0/24
+az network vnet subnet create -g $RG --vnet-name vnet-demo -n snet-integration \
+  --address-prefixes 10.0.0.0/27 --delegations Microsoft.Web/serverFarms
+az vm create -g $RG -n vm-api --image Ubuntu2204 --size Standard_B1s \
+  --vnet-name vnet-demo --subnet snet-vm --private-ip-address 10.0.1.4 \
+  --public-ip-address "" --nsg-rule NONE \
+  --admin-username azureuser --generate-ssh-keys
+az vm run-command invoke -g $RG -n vm-api --command-id RunShellScript \
+  --scripts "apt-get update -y &amp;&amp; apt-get install -y nginx"</pre></div>
+    </div>
+    <div class="step">
+      <h3>Create the app and prove it is cut off</h3>
+      <p>Setup: <b>Public only</b>. Open an SSH session into the app container and try the VM.</p>
+      <div class="codebox"><button class="copy">Copy</button><pre>az appservice plan create -g $RG -n plan-demo --sku P0v3 --is-linux
+az webapp create -g $RG -p plan-demo -n $APP --runtime "NODE:20-lts"
+az webapp ssh -g $RG -n $APP
+<span class="c"># inside the app container:</span>
+curl -m 5 http://10.0.1.4</pre></div>
+      <p class="expect"><b>Expected:</b> <code>curl: (28) Connection timed out</code>. If <code>az webapp ssh</code> is unavailable, use the browser SSH at <code>https://&lt;app&gt;.scm.azurewebsites.net/webssh/host</code>.</p>
+    </div>
+    <div class="step">
+      <h3>Add VNet Integration and retry</h3>
+      <p>Setup: <b>VNet Integration</b>. Outbound now works, and the app is still public.</p>
+      <div class="codebox"><button class="copy">Copy</button><pre>az webapp vnet-integration add -g $RG -n $APP --vnet vnet-demo --subnet snet-integration
+<span class="c"># in the app's SSH session again:</span>
+curl -m 5 http://10.0.1.4                       <span class="c"># 200 OK from nginx</span>
+<span class="c"># from your own laptop:</span>
+curl -I https://$APP.azurewebsites.net          <span class="c"># still 200: inbound unchanged</span>
+<span class="c"># from inside the VNet:</span>
+az vm run-command invoke -g $RG -n vm-api --command-id RunShellScript \
+  --scripts "nslookup $APP.azurewebsites.net"   <span class="c"># public IP, no private one</span></pre></div>
+    </div>
+    <div class="step">
+      <h3>Add a Private Endpoint and close the public door</h3>
+      <p>Setup: <b>Integration + Private Endpoint</b>. The app gets an inbound IP in <code>snet-pe</code>.</p>
+      <div class="codebox"><button class="copy">Copy</button><pre>az network vnet subnet create -g $RG --vnet-name vnet-demo -n snet-pe --address-prefixes 10.0.2.0/27
+APP_ID=$(az webapp show -g $RG -n $APP --query id -o tsv)
+az network private-endpoint create -g $RG -n pe-app --vnet-name vnet-demo --subnet snet-pe \
+  --private-connection-resource-id $APP_ID --group-id sites --connection-name pe-app-conn
+az network private-dns zone create -g $RG -n privatelink.azurewebsites.net
+az network private-dns link vnet create -g $RG -n link-demo \
+  -z privatelink.azurewebsites.net -v vnet-demo -e false
+az network private-endpoint dns-zone-group create -g $RG --endpoint-name pe-app -n default \
+  --private-dns-zone privatelink.azurewebsites.net --zone-name webapp
+az resource update --ids $APP_ID --set properties.publicNetworkAccess=Disabled</pre></div>
+      <p class="expect"><b>Expected:</b> the VM's <code>nslookup</code> now returns <code>10.0.2.x</code>, and <code>curl -I</code> from your laptop returns <code>403 Forbidden</code>.</p>
+    </div>
+    <div class="step">
+      <h3>Optional: VNet Injection with an internal ASE v3</h3>
+      <p>Setup: <b>VNet Injection</b>. The app runs inside <code>snet-ase</code>. No integration or private endpoint needed.</p>
+      <div class="codebox"><button class="copy">Copy</button><pre>az network vnet subnet create -g $RG --vnet-name vnet-demo -n snet-ase \
+  --address-prefixes 10.0.4.0/24 --delegations Microsoft.Web/hostingEnvironments
+az appservice ase create -g $RG -n ase-demo --vnet-name vnet-demo --subnet snet-ase \
+  --kind asev3 --virtual-ip-type Internal
+ILB=$(az appservice ase list-addresses -g $RG -n ase-demo --query internalIpAddress -o tsv)
+Z=ase-demo.appserviceenvironment.net
+az network private-dns zone create -g $RG -n $Z
+az network private-dns link vnet create -g $RG -n link-ase -z $Z -v vnet-demo -e false
+for r in '*' '*.scm' '@'; do
+  az network private-dns record-set a add-record -g $RG -z $Z -n "$r" -a $ILB
+done
+az appservice plan create -g $RG -n plan-ase --app-service-environment ase-demo --sku I1v2 --is-linux
+az webapp create -g $RG -p plan-ase -n $APP-ase --runtime "NODE:20-lts"</pre></div>
+      <p class="note">An ASE v3 can take an hour or more to deploy and bills for at least one Isolated v2 instance while it exists. Delete it as soon as you finish the demo.</p>
+    </div>
+    <div class="step">
+      <h3>Clean up</h3>
+      <div class="codebox"><button class="copy">Copy</button><pre>az group delete -n $RG --yes --no-wait</pre></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sechead">
+    <div class="eyebrow">Common mistakes</div>
+    <h2>Things that trip people up</h2>
+  </div>
+  <div class="gotchas">
+    <div><h3>"We integrated it, so it's private"</h3><p>Integration changes outbound only. The app keeps answering on its public hostname until you disable public network access or add access restrictions.</p></div>
+    <div><h3>DNS is half the job</h3><p>Reaching a Private Endpoint by name needs the matching <code>privatelink.*</code> Private DNS zone linked to the VNet. Without it, the app resolves the public IP and gets denied.</p></div>
+    <div><h3>NSGs on the integration subnet</h3><p>Outbound rules apply to the app's traffic. Inbound rules there do nothing for the app, because nothing comes in through that subnet.</p></div>
+    <div><h3>Allow the right source range</h3><p>Targets in the VNet see integrated calls coming from the integration subnet (here <code>10.0.0.0/27</code>). Open firewalls and NSGs for that range, not the app's public outbound IPs.</p></div>
+    <div><h3>Route all traffic</h3><p>To use a NAT Gateway, Azure Firewall or on-prem routes, the app's outbound internet traffic must be routed into the VNet. Newer apps do this by default; check the app's outbound routing setting on older ones.</p></div>
+    <div><h3>Pick by requirement</h3><p>Need private outbound only? Integration. Need private inbound too? Add a Private Endpoint. Need full isolation, dedicated compute, or inbound NSG control? Use injection.</p></div>
+  </div>
+</section>
+</div>
+
+<script>
+const MODES = [
+  {id:'A', k:'Setup 1', name:'Public only', desc:'<b>Multi-tenant App Service, no networking features.</b> The app runs on shared Microsoft workers outside your network. Public in, public out. It cannot see anything in <code>vnet-demo</code>.'},
+  {id:'B', k:'Setup 2', name:'VNet Integration', desc:'<b>Regional VNet Integration.</b> The app still runs outside your VNet. Its outbound calls are pushed into the VNet through the delegated subnet <code>snet-integration</code>. The door only opens outward.'},
+  {id:'C', k:'Setup 3', name:'Integration + Private Endpoint', desc:'<b>The usual "private multi-tenant app".</b> Integration handles outbound, a Private Endpoint (10.0.2.5) handles inbound, and public network access is disabled. Two separate features doing two separate jobs.'},
+  {id:'D', k:'Setup 4', name:'VNet Injection', desc:'<b>App Service Environment v3, internal mode.</b> The app\'s compute is deployed inside <code>snet-ase</code> and listens on an internal load balancer IP (10.0.4.10). Private inbound and outbound come built in.'}
+];
+const NODES = {
+  I:{x:90,y:130,t:'Internet user',s:'home laptop'},
+  O:{x:90,y:486,t:'On-prem user',s:'192.168.10.0/24'},
+  A:{x:335,y:130,t:'Web app',s:'app-demo · shared'},
+  S:{x:335,y:380,t:'Azure SQL',s:'public access: off'},
+  N:{x:640,y:95,t:'App outbound',s:'10.0.0.x · delegated'},
+  J:{x:725,y:195,t:'Web app (ASE v3)',s:'ILB 10.0.4.10'},
+  P1:{x:640,y:297,t:'PE → SQL',s:'10.0.2.4'},
+  P2:{x:830,y:297,t:'PE → web app',s:'10.0.2.5'},
+  V:{x:725,y:394,t:'VM vm-api',s:'10.0.1.4 · nginx'},
+  G:{x:725,y:486,t:'VPN gateway',s:'site-to-site'}
+};
+const STAT = {pass:'Works', fail:'Fails', warn:'Exposed', block:'Blocked'};
+const SYM = {pass:'✓ Works', fail:'✕ Fails', warn:'! Exposed', block:'✓ Blocked'};
+const OUT_B = ['A',[470,130],[470,95],'N'];
+
+const TESTS = [
+ {id:'t1', dir:'out', t:'App → Azure SQL', sub:'SQL has public access off. Its only door is the private endpoint at 10.0.2.4.',
+  cmd:'nc -zv -w5 sqlsrv-demo.database.windows.net 1433', from:'app SSH console',
+  r:{
+   A:{st:'fail', h:'Denied. The app can\'t see the private endpoint.', out:'resolves to 20.192.x.x (public)\nlogin denied: public network access is disabled',
+      why:'The app runs on shared workers outside your network and uses public DNS, so it gets SQL\'s public address, which you switched off. 10.0.2.4 is unreachable because the app has no route into vnet-demo.', path:['A',[335,346]]},
+   B:{st:'pass', h:'Connected through the integration subnet.', out:'resolves to 10.0.2.4 (privatelink.database.windows.net)\nConnection to sqlsrv-demo... 1433 port [tcp] succeeded!',
+      why:'Outbound calls now leave through snet-integration. Because the Private DNS zone privatelink.database.windows.net is linked to vnet-demo, the name resolves to 10.0.2.4 and the packet stays inside the VNet.', path:[...OUT_B,'P1',[500,297],[500,380],'S']},
+   C:{st:'pass', h:'Connected. Same path as integration alone.', out:'resolves to 10.0.2.4 (privatelink.database.windows.net)\nConnection to sqlsrv-demo... 1433 port [tcp] succeeded!',
+      why:'The app\'s own private endpoint plays no part here. It only handles traffic coming in to the app.', path:[...OUT_B,'P1',[500,297],[500,380],'S']},
+   D:{st:'pass', h:'Connected directly from inside the VNet.', out:'resolves to 10.0.2.4 (privatelink.database.windows.net)\nConnection to sqlsrv-demo... 1433 port [tcp] succeeded!',
+      why:'The app\'s compute already sits in snet-ase, so it resolves and reaches 10.0.2.4 like any VM in the VNet. There is no integration setting to turn on.', path:['J',[640,195],'P1',[500,297],[500,380],'S']}
+  }},
+ {id:'t2', dir:'out', t:'App → internal API on a VM', sub:'nginx on vm-api, private IP only.',
+  cmd:'curl -m 5 http://10.0.1.4', from:'app SSH console',
+  r:{
+   A:{st:'fail', h:'Timed out. No route to a private IP.', out:'curl: (28) Connection timed out after 5001 milliseconds',
+      why:'This is the core thing an app without integration cannot do: talk to anything that only has a private IP. The shared worker has no route into your address space.', path:['A',[470,130],[470,394],[520,394]]},
+   B:{st:'pass', h:'200 OK through the integration subnet.', out:'HTTP/1.1 200 OK\nServer: nginx/1.18.0 (Ubuntu)',
+      why:'Traffic enters the VNet via snet-integration and is routed to snet-vm. The VM sees the source as an address from 10.0.0.0/27, so NSG rules on snet-vm must allow that range.', path:[...OUT_B,[560,95],[560,394],'V']},
+   C:{st:'pass', h:'200 OK. Same outbound path.', out:'HTTP/1.1 200 OK\nServer: nginx/1.18.0 (Ubuntu)',
+      why:'Adding a private endpoint changes nothing for outbound calls.', path:[...OUT_B,[560,95],[560,394],'V']},
+   D:{st:'pass', h:'200 OK. Neighbours in the same VNet.', out:'HTTP/1.1 200 OK\nServer: nginx/1.18.0 (Ubuntu)',
+      why:'Both live in vnet-demo. The VM sees the source as an address from snet-ase (10.0.4.0/24).', path:['J',[912,195],[912,394],'V']}
+  }},
+ {id:'t3', dir:'out', t:'App → on-prem server', sub:'192.168.10.5, across a site-to-site VPN.',
+  cmd:'curl -m 5 http://192.168.10.5', from:'app SSH console',
+  r:{
+   A:{st:'fail', h:'Timed out. The VPN is out of reach.', out:'curl: (28) Connection timed out after 5000 milliseconds',
+      why:'On-prem is reachable only through the VPN gateway in vnet-demo. Without a foothold in the VNet the app cannot use that gateway.', path:['A',[470,130],[470,486],[520,486]]},
+   B:{st:'pass', h:'Reached on-prem through the gateway.', out:'HTTP/1.1 200 OK',
+      why:'Integrated traffic follows the VNet\'s routes, including the route to 192.168.10.0/24 via the gateway. On-prem firewalls must allow 10.0.0.0/27, and all outbound traffic must be routed into the VNet (the default on newer apps).', path:[...OUT_B,[912,95],[912,486],'G','O']},
+   C:{st:'pass', h:'Reached on-prem through the gateway.', out:'HTTP/1.1 200 OK',
+      why:'Same outbound path as integration alone.', path:[...OUT_B,[912,95],[912,486],'G','O']},
+   D:{st:'pass', h:'Reached on-prem through the gateway.', out:'HTTP/1.1 200 OK',
+      why:'The ASE subnet uses the VNet\'s routes to the gateway like any other subnet.', path:['J',[912,195],[912,486],'G','O']}
+  }},
+ {id:'t4', dir:'in', t:'VM → app over a private IP', sub:'Can something inside the VNet call the app privately?',
+  cmd:'nslookup app-demo.azurewebsites.net', from:'vm-api',
+  r:{
+   A:{st:'fail', h:'No private address exists.', out:'app-demo.azurewebsites.net → 20.x.x.x (public)',
+      why:'The app has no address in your VNet. The VM could still reach it over the internet if it has outbound access, but nothing about that path is private.', path:['V',[612,394]]},
+   B:{st:'fail', h:'Still no private address. Integration is outbound only.', out:'app-demo.azurewebsites.net → 20.x.x.x (public)',
+      why:'This is the most common misunderstanding. The integration subnet carries only calls the app starts. Nothing listens on 10.0.0.x and the app\'s inbound endpoint stays public. To call it privately you need a private endpoint or injection.', path:['V',[560,394],[560,95]]},
+   C:{st:'pass', h:'Resolves to the private endpoint.', out:'app-demo.azurewebsites.net\n  → app-demo.privatelink.azurewebsites.net\n  → 10.0.2.5',
+      why:'The private endpoint gives the app an inbound NIC in snet-pe. With the Private DNS zone linked, the VM resolves the normal hostname to 10.0.2.5 and the request never leaves the Microsoft backbone.', path:['V',[830,394],'P2',[830,180],[335,180],'A']},
+   D:{st:'pass', h:'Resolves to the ASE load balancer.', out:'app-demo.ase-demo.appserviceenvironment.net\n  → 10.0.4.10',
+      why:'The ASE\'s internal load balancer has a private IP in snet-ase. The app was deployed inside the VNet, so private inbound comes built in.', path:['V',[912,394],[912,195],'J']}
+  }},
+ {id:'t5', dir:'in', t:'Internet → app', sub:'Should a random laptop be able to open it? Usually you want: no.',
+  cmd:'curl -I https://app-demo.azurewebsites.net', from:'home laptop',
+  r:{
+   A:{st:'warn', h:'Open to the internet.', out:'HTTP/1.1 200 OK',
+      why:'The default for multi-tenant App Service: a public endpoint anyone can reach.', path:['I','A']},
+   B:{st:'warn', h:'Still open to the internet.', out:'HTTP/1.1 200 OK',
+      why:'VNet Integration does not change inbound at all. Teams often assume the app is now private, and it isn\'t. Disable public network access or add access restrictions.', path:['I','A']},
+   C:{st:'block', h:'Blocked at the front door.', out:'HTTP/1.1 403 Forbidden',
+      why:'With public network access disabled, App Service rejects internet requests. Only traffic arriving through the private endpoint is accepted.', path:['I',[256,130]]},
+   D:{st:'block', h:'Nothing to connect to.', out:'curl: (6) Could not resolve host:\n  app-demo.ase-demo.appserviceenvironment.net',
+      why:'An internal ASE has no public IP, and its domain resolves only in your Private DNS zone. From the internet the app does not exist.', path:['I',[90,68],[520,68]]}
+  }},
+ {id:'t6', dir:'in', t:'On-prem user → app privately', sub:'Open the app from the office over the VPN.',
+  cmd:'curl -I https://app-demo.azurewebsites.net', from:'office PC',
+  r:{
+   A:{st:'fail', h:'No private path.', out:'resolves to 20.x.x.x (public)\ntraffic leaves over the internet, not the VPN',
+      why:'The tunnel lands in vnet-demo, but the app has no address there to receive it.', path:['O','G',[725,452]]},
+   B:{st:'fail', h:'No private path. Integration doesn\'t help.', out:'resolves to 20.x.x.x (public)\ntraffic leaves over the internet, not the VPN',
+      why:'Integration only carries traffic the app starts. Nothing in the VNet can accept a call for the app.', path:['O','G',[725,452]]},
+   C:{st:'pass', h:'Over the VPN to the private endpoint.', out:'resolves to 10.0.2.5 (via Azure DNS forwarding)\nHTTP/1.1 200 OK',
+      why:'On-prem DNS forwards privatelink.azurewebsites.net to an Azure DNS Private Resolver (or a DNS VM) in the VNet, so office users get 10.0.2.5 and travel through the tunnel.', path:['O','G',[830,486],'P2',[830,180],[335,180],'A']},
+   D:{st:'pass', h:'Over the VPN to the ASE.', out:'resolves to 10.0.4.10 (via Azure DNS forwarding)\nHTTP/1.1 200 OK',
+      why:'Same idea with the ASE\'s internal load balancer. Forward the ASE domain from on-prem DNS to Azure.', path:['O','G',[912,486],[912,195],'J']}
+  }}
+];
+
+let mode = 'A', test = 't2';
+try { const s = JSON.parse(localStorage.getItem('vnetlab')||'{}'); if (s.mode) mode = s.mode; if (s.test) test = s.test; } catch(e){}
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const P = p => typeof p === 'string' ? [NODES[p].x, NODES[p].y] : p;
+function pathD(list){
+  const pts = list.map(P);
+  const last = list[list.length-1];
+  if (typeof last === 'string' && pts.length > 1){
+    const [x2,y2] = pts[pts.length-1], [x1,y1] = pts[pts.length-2];
+    const dx = x2-x1, dy = y2-y1;
+    const t = Math.min(dx ? 72/Math.abs(dx) : 1e9, dy ? 24/Math.abs(dy) : 1e9);
+    pts[pts.length-1] = [x2 - dx*t, y2 - dy*t];
+  }
+  return pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+}
+
+function node(id, cls=''){
+  const n = NODES[id];
+  return `<g class="nd ${cls}"><rect x="${n.x-68}" y="${n.y-20}" width="136" height="40" rx="6"/>
+  <text class="n1" x="${n.x}" y="${n.y-3}" text-anchor="middle">${esc(n.t)}</text>
+  <text class="n2" x="${n.x}" y="${n.y+11}" text-anchor="middle">${esc(n.s)}</text></g>`;
+}
+
+function drawSVG(){
+  const r = TESTS.find(t=>t.id===test).r[mode];
+  const st = r.st;
+  const sub = (y,label,on) => `<rect class="z-sub ${on?'on':''}" x="534" y="${y}" width="392" height="86" rx="5"/><text class="zl" x="544" y="${y+16}">${label}</text>`;
+  let s = `
+  <defs>${['pass','fail','warn','block'].map(k=>`<marker id="m-${k}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--${k})"/></marker>`).join('')}
+  <marker id="m-acc" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker></defs>
+  <text class="zl" x="24" y="40">OUTSIDE AZURE</text>
+  <rect class="z-paas" x="200" y="20" width="270" height="430" rx="8"/>
+  <text class="zt" x="212" y="40">Azure multi-tenant PaaS</text>
+  <text class="zl" x="212" y="55">shared infra · public endpoints</text>
+  <rect class="z-vnet" x="520" y="20" width="420" height="520" rx="8"/>
+  <text class="zt" x="534" y="40">vnet-demo · 10.0.0.0/16</text>
+  ${sub(52,'snet-integration · 10.0.0.0/27', mode==='B'||mode==='C')}
+  ${sub(150,'snet-ase · 10.0.4.0/24'+(mode==='D'?'':' · empty'), mode==='D')}
+  ${sub(252,'snet-pe · 10.0.2.0/27', true)}
+  ${sub(354,'snet-vm · 10.0.1.0/24', true)}
+  ${sub(446,'GatewaySubnet', true)}
+  <path class="ln" d="M90 486 L725 486"/><text class="lm" x="214" y="478">VPN tunnel</text>
+  <path class="ln priv" d="${pathD(['P1',[500,297],[500,380],'S'])}"/><text class="lm" x="350" y="318">private link</text>`;
+  if (mode==='B'||mode==='C'){
+    s += `<path class="ln integ" d="${pathD(OUT_B)}" marker-end="url(#m-acc)"/>
+    <text class="ll" x="408" y="68">VNet integration</text><text class="ll" x="408" y="82">outbound only →</text>`;
+  }
+  if (mode==='C'){
+    s += `<path class="ln pe" d="${pathD(['P2',[830,180],[335,180],'A'])}" marker-end="url(#m-acc)"/>
+    <text class="ll" x="610" y="173">private endpoint · inbound</text>`;
+  }
+  // route
+  const d = pathD(r.path);
+  const endsAtNode = typeof r.path[r.path.length-1] === 'string';
+  const anim = !reduce && st!=='fail' ? ' ants' : '';
+  s += `<path class="route ${st}${anim}" d="${d}" ${endsAtNode?`marker-end="url(#m-${st})"`:''}/>`;
+  // nodes
+  s += node('I') + node('O') + node('S') + node('P1') + node('V') + node('G');
+  s += node('A', mode==='D' ? 'dim' : 'app');
+  s += node('N', mode==='B'||mode==='C' ? '' : 'dim');
+  if (mode==='C') s += node('P2');
+  if (mode==='D') s += node('J','app');
+  if (mode==='D') s += `<text class="lm" x="335" y="168" text-anchor="middle">not used</text>`;
+  // end marker
+  if (!endsAtNode && (st==='fail'||st==='block')){
+    const [x,y] = P(r.path[r.path.length-1]);
+    s += `<circle class="xbg" cx="${x}" cy="${y}" r="11"/><path class="xm ${st}" d="M${x-6} ${y-6}L${x+6} ${y+6}M${x+6} ${y-6}L${x-6} ${y+6}"/>`;
+  }
+  if (!reduce) s += `<circle class="dot ${st}" r="5"><animateMotion id="mv" dur="${st==='fail'||st==='block'?'1.4s':'2.4s'}" begin="indefinite" fill="freeze" ${st==='fail'||st==='block'?'':'repeatCount="indefinite"'} path="${d}"/></circle>`;
+  $('svg').innerHTML = s;
+  const mv = document.getElementById('mv'); if (mv && mv.beginElement) { try{ mv.beginElement(); }catch(e){} }
+}
+
+function render(){
+  $('modes').innerHTML = MODES.map(m=>`<button type="button" data-m="${m.id}" aria-pressed="${m.id===mode}"><small>${m.k}</small><b>${m.name}</b></button>`).join('');
+  $('modedesc').innerHTML = MODES.find(m=>m.id===mode).desc;
+  $('tests').innerHTML = `<div class="lbl">Run a traffic test</div>` + TESTS.map(t=>{
+    const st = t.r[mode].st;
+    return `<button type="button" class="test" data-t="${t.id}" aria-pressed="${t.id===test}"><span class="dir">${t.dir==='out'?'out':'in'}</span><span class="t">${esc(t.t)}</span><span class="chip ${st}">${STAT[st]}</span></button>`;
+  }).join('');
+  const T = TESTS.find(t=>t.id===test), r = T.r[mode];
+  const cmd = (mode==='D' && (test==='t5'||test==='t6')) ? T.cmd.replace('app-demo.azurewebsites.net','app-demo.ase-demo.appserviceenvironment.net') : T.cmd;
+  $('result').innerHTML = `<div class="head"><span class="chip ${r.st}">${STAT[r.st]}</span><h3>${esc(r.h)}</h3></div>
+    <p class="sub">${esc(T.sub)}</p>
+    <div class="term"><span class="p"># from ${esc(T.from)}</span>\n<span class="p">$</span> ${esc(cmd)}\n${esc(r.out)}</div>
+    <p class="why">${esc(r.why)}</p>`;
+  drawSVG();
+  try { localStorage.setItem('vnetlab', JSON.stringify({mode,test})); } catch(e){}
+}
+
+$('modes').addEventListener('click', e=>{ const b = e.target.closest('button'); if (b){ mode = b.dataset.m; render(); }});
+$('tests').addEventListener('click', e=>{ const b = e.target.closest('button'); if (b){ test = b.dataset.t; render(); }});
+
+// matrix
+$('matrix').innerHTML = `<thead><tr><th>Test</th>${MODES.map(m=>`<th>${m.name}</th>`).join('')}</tr></thead><tbody>` +
+  TESTS.map(t=>`<tr><th>${esc(t.t)} <span class="dir" style="display:inline-block;margin-left:4px">${t.dir}</span></th>${MODES.map(m=>{const st=t.r[m.id].st;return `<td class="c"><span class="chip ${st}">${SYM[st]}</span></td>`;}).join('')}</tr>`).join('') + `</tbody>`;
+
+// copy buttons
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click', ()=>{
+  const pre = b.nextElementSibling;
+  const txt = pre.innerText;
+  const done = ()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1500); };
+  const fallback = ()=>{ const r=document.createRange(); r.selectNodeContents(pre); const s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent='Selected'; setTimeout(()=>b.textContent='Copy',1500); };
+  try { navigator.clipboard.writeText(txt).then(done, fallback); } catch(e){ fallback(); }
+}));
+
+render();
+</script>
+
+</body></html>
