@@ -129,16 +129,216 @@ az network vnet subnet update -g $RG --vnet-name $VNET -n snet-pe \
 Create the page locally:
 
 ```bash
-cat > index.html <<'EOF'
-<!DOCTYPE html>
-<html>
-<head><title>Private Endpoint Demo</title></head>
-<body style="font-family: sans-serif; text-align: center; margin-top: 15%;">
-  <h1>Hello from Azure Storage via Private Endpoint</h1>
-  <p>This page was downloaded by the VM over Private Link and served by nginx on port 80.</p>
-</body>
-</html>
-EOF
+
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# ============================================================
+# Azure Private Endpoint Teaching Lab
+# Ubuntu VM + Nginx + Azure Blob Storage
+# Web page: http://VM-PUBLIC-IP:30080
+# ============================================================
+
+if [[ $EUID -ne 0 ]]; then
+    echo "Run with sudo: sudo bash setup-private-storage-web.sh"
+    exit 1
+fi
+
+echo "=================================================="
+echo " Azure VM -> Storage Private Endpoint Demo"
+echo "=================================================="
+
+read -rp "Enter Storage Account name: " STORAGE_ACCOUNT
+read -rp "Enter Blob container name: " CONTAINER_NAME
+read -rp "Enter Storage Private Endpoint IP: " PRIVATE_IP
+
+# Basic input validation
+if [[ ! "$STORAGE_ACCOUNT" =~ ^[a-z0-9]{3,24}$ ]]; then
+    echo "ERROR: Invalid Storage Account name."
+    exit 1
+fi
+
+if [[ ! "$CONTAINER_NAME" =~ ^[a-z0-9-]+$ ]]; then
+    echo "ERROR: Invalid container name."
+    exit 1
+fi
+
+# Validate private IP using Python's standard library.
+python3 - "$PRIVATE_IP" <<'PY'
+import ipaddress
+import sys
+
+try:
+    ip = ipaddress.ip_address(sys.argv[1])
+    if not ip.is_private or ip.is_loopback or ip.is_link_local:
+        raise ValueError("IP is not a valid private endpoint address")
+except ValueError as exc:
+    print(f"ERROR: {exc}")
+    sys.exit(1)
+PY
+
+BLOB_HOST="${STORAGE_ACCOUNT}.blob.core.windows.net"
+BLOB_URL="https://${BLOB_HOST}/${CONTAINER_NAME}/index.html"
+WEB_ROOT="/var/www/private-storage-demo"
+HOSTS_TAG="# AZURE_PRIVATE_STORAGE_DEMO"
+
+echo
+echo "[1/7] Installing required packages..."
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y nginx curl ca-certificates python3 gnupg
+
+# Install Azure CLI if it is not already installed.
+if ! command -v az >/dev/null 2>&1; then
+    echo "Installing Azure CLI..."
+
+    install -d -m 0755 /etc/apt/keyrings
+
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor --yes \
+          -o /etc/apt/keyrings/microsoft.gpg
+
+    chmod a+r /etc/apt/keyrings/microsoft.gpg
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(. /etc/os-release && echo "$VERSION_CODENAME") main" \
+      > /etc/apt/sources.list.d/azure-cli.list
+
+    apt-get update
+    apt-get install -y azure-cli
+fi
+
+echo
+echo "[2/7] Configuring private endpoint resolution..."
+
+# Remove an older entry created by this script.
+sed -i "\|${HOSTS_TAG} ${BLOB_HOST}$|d" /etc/hosts
+
+# Force this hostname to the supplied Private Endpoint IP.
+echo "${PRIVATE_IP} ${BLOB_HOST} ${HOSTS_TAG}" >> /etc/hosts
+
+RESOLVED_IP=$(getent ahostsv4 "$BLOB_HOST" | awk 'NR==1 {print $1}')
+
+if [[ "$RESOLVED_IP" != "$PRIVATE_IP" ]]; then
+    echo "ERROR: Storage hostname did not resolve to the supplied private IP."
+    echo "Expected: $PRIVATE_IP ; Got: ${RESOLVED_IP:-no address}"
+    exit 1
+fi
+
+echo "Storage hostname : $BLOB_HOST"
+echo "Resolved IP      : $RESOLVED_IP"
+echo "Expected private : $PRIVATE_IP"
+
+echo
+echo "[3/7] Authenticating with the VM managed identity..."
+
+if ! az login --identity --output none; then
+    echo "ERROR: Managed identity login failed."
+    echo "Enable the VM identity and grant Storage Blob Data Reader."
+    exit 1
+fi
+
+echo
+echo "[4/7] Downloading index.html from Blob Storage..."
+
+mkdir -p "$WEB_ROOT"
+
+# Download through the hostname that now resolves to the private IP.
+# Azure CLI uses HTTPS and Microsoft Entra authentication.
+if ! az storage blob download \
+    --account-name "$STORAGE_ACCOUNT" \
+    --container-name "$CONTAINER_NAME" \
+    --name "index.html" \
+    --file "${WEB_ROOT}/index.html" \
+    --auth-mode login \
+    --overwrite true \
+    --only-show-errors \
+    --output none; then
+
+    echo "ERROR: Download failed."
+    echo "Check RBAC, container/blob name, private endpoint connectivity,"
+    echo "Storage firewall settings and DNS/network configuration."
+    exit 1
+fi
+
+if [[ ! -s "${WEB_ROOT}/index.html" ]]; then
+    echo "ERROR: Downloaded index.html is empty or missing."
+    exit 1
+fi
+
+echo "Downloaded: ${WEB_ROOT}/index.html"
+
+echo
+echo "[5/7] Setting file permissions..."
+
+chown -R www-data:www-data "$WEB_ROOT"
+find "$WEB_ROOT" -type d -exec chmod 755 {} \;
+find "$WEB_ROOT" -type f -exec chmod 644 {} \;
+
+echo
+echo "[6/7] Configuring Nginx on port 30080..."
+
+cat > /etc/nginx/sites-available/private-storage-demo <<'NGINX'
+server {
+    listen 30080 default_server;
+    listen [::]:30080 default_server;
+
+    server_name _;
+
+    root /var/www/private-storage-demo;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location = /health {
+        access_log off;
+        default_type text/plain;
+        return 200 "Nginx is running\n";
+    }
+}
+NGINX
+
+ln -sfn /etc/nginx/sites-available/private-storage-demo \
+    /etc/nginx/sites-enabled/private-storage-demo
+
+rm -f /etc/nginx/sites-enabled/default
+
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
+
+echo
+echo "[7/7] Verifying the website..."
+
+curl -fsS http://127.0.0.1:30080/health
+
+echo
+echo "=================================================="
+echo " SETUP COMPLETE"
+echo "=================================================="
+echo "Web port         : 30080"
+echo "Storage account  : $STORAGE_ACCOUNT"
+echo "Container        : $CONTAINER_NAME"
+echo "Blob hostname    : $BLOB_HOST"
+echo "Private IP       : $PRIVATE_IP"
+echo "Resolved IP      : $RESOLVED_IP"
+echo "Downloaded file  : ${WEB_ROOT}/index.html"
+echo
+echo "Open in browser:"
+echo "http://<VM-PUBLIC-IP>:30080"
+echo
+echo "Verify private DNS override:"
+echo "getent hosts $BLOB_HOST"
+echo
+echo "Verify Nginx:"
+echo "sudo systemctl status nginx"
+echo
+echo "Verify web page:"
+echo "curl http://127.0.0.1:30080/"
+echo "=================================================="
+
 ```
 
 Create the storage account, upload the file **while public access is still on**, then turn public access off:
