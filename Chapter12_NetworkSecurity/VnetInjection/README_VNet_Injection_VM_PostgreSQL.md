@@ -240,6 +240,19 @@ ssh azureuser@<VM_PUBLIC_IP>
 # 8. Create PostgreSQL Flexible Server with VNet Injection
 
 Create the PostgreSQL server:
+```powershell
+$DNSZONE = "vnetinjection.private.postgres.database.azure.com"
+az network private-dns zone create `
+  --resource-group $RG `
+  --name $DNSZONE
+
+
+az network private-dns link vnet create `
+  --resource-group $RG `
+  --zone-name $DNSZONE `
+  --name postgres-dns-link `
+  --virtual-network $VNET `
+  --registration-enabled false
 
 ```powershell
 az postgres flexible-server create `
