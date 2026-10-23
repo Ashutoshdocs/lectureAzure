@@ -35,7 +35,9 @@ now served by vm02.
 | `04-init-shared-disk.sh` | **vm01 only, once** | Format disk, move MySQL data + app onto it, create DB |
 | `activate.sh` | the VM taking over | Mount disk, start MySQL + app |
 | `deactivate.sh` | the VM giving up | Stop app + MySQL, unmount disk |
+| `fix-db-user.sh` | active VM | Repair "Access denied for user 'demo'" – resync DB user with `app.env` |
 | `05-failover-demo.sh` | laptop / Cloud Shell | Deallocate vm01, activate vm02 remotely |
+| `06-failback.sh` | laptop / Cloud Shell | Start vm01, cleanly deactivate vm02, activate vm01 |
 | `app/app.py` | (copied to shared disk) | Frontend application |
 
 ---
@@ -140,6 +142,15 @@ Open `http://<vm02-public-ip>/`
 - Add a note "written on vm02".
 
 ### Step 8 – (Optional) Fail back to vm01
+
+**Option A – one command from laptop**
+```bash
+./06-failback.sh                 # starts vm01, deactivates vm02, activates vm01
+```
+It only activates vm01 after vm02 reports it has released the disk. If vm02 is
+already stopped, it activates vm01 with `--force`.
+
+**Option B – manually**
 ```bash
 az vm start -g rg-shareddisk-demo -n vm01
 ssh azureuser@$VM02 'cd shared-disk-demo && sudo ./deactivate.sh'   # clean release
@@ -188,5 +199,6 @@ az disk show -g rg-shareddisk-demo -n shared-disk01 --query managedByExtended
 | `Shared disk not found at /dev/disk/azure/scsi1/lun0` | Disk not attached, or attached on a LUN other than 0 |
 | `az disk create` fails on `--zone` | Region has no zones – remove `--zone` from scripts and VM create (VMs and disk must still match) |
 | `label shareddata not found` on vm02 | Run `sudo partprobe /dev/disk/azure/scsi1/lun0` or reboot vm02 |
+| Page shows `Access denied for user 'demo'@'localhost'` | MySQL is serving the local datadir. Run `sudo ./deactivate.sh && sudo ./activate.sh`; if it persists, `sudo ./fix-db-user.sh` |
 | Page shows "Database error" | `sudo systemctl status mysql`; check `/var/log/mysql/error.log` |
 | MySQL won't start on vm02 | Both VMs must have the same MySQL version (`mysqld --version`); setup script holds the package |
