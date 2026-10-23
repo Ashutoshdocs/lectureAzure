@@ -37,12 +37,28 @@ fi
 
 echo "$ME" > "$MNT/ACTIVE_NODE"; sync
 
-mountpoint -q /var/lib/mysql || mount --bind "$MNT/mysql" /var/lib/mysql
+# If MySQL is already running on the LOCAL datadir, "start" would be a no-op and
+# it would keep serving the empty local database. Stop it before switching.
+if ! mountpoint -q /var/lib/mysql; then
+  if systemctl is-active --quiet mysql || pgrep -x mysqld >/dev/null; then
+    echo ">> MySQL was running on the local disk – stopping it first"
+    systemctl stop mysql demo-app || true
+    sleep 2
+  fi
+  mount --bind "$MNT/mysql" /var/lib/mysql
+fi
 cp "$MNT/config/debian.cnf" /etc/mysql/debian.cnf
 chmod 600 /etc/mysql/debian.cnf
 
-systemctl start mysql           # InnoDB crash recovery runs here if needed
-systemctl start demo-app
+systemctl restart mysql         # InnoDB crash recovery runs here if needed
+systemctl restart demo-app
+
+# Verify MySQL is really serving the shared-disk data
+if ! mysql -Nse "SHOW DATABASES LIKE 'demo'" | grep -qx demo; then
+  echo "!! MySQL is up but database 'demo' is missing – it is NOT using the shared data."
+  echo "   Check: findmnt /var/lib/mysql ; sudo mysql -e 'select @@datadir'"
+  echo "   Repair: sudo ./fix-db-user.sh"
+fi
 
 echo "== $ME is ACTIVE =="
 systemctl --no-pager --lines=0 status mysql demo-app | grep -E "●|Active:"
