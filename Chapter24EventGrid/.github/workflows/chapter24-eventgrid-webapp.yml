@@ -1,0 +1,45 @@
+# Deploys Chapter24EventGrid/webapp to Azure App Service.
+# Runs only when files inside Chapter24EventGrid/webapp change (or manually).
+#
+# One-time setup (see Chapter24EventGrid/README.md, Step 0.5):
+#   1. Set AZURE_WEBAPP_NAME below to your Web App name.
+#   2. Add the repo secret AZURE_WEBAPP_PUBLISH_PROFILE_EVENTGRID
+#      (contents of the publish profile downloaded from the Azure Portal).
+#   3. If your default branch is not "main", change it under "branches".
+
+name: Chapter24 EventGrid - Deploy Web App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Chapter24EventGrid/webapp/**"
+      - ".github/workflows/chapter24-eventgrid-webapp.yml"
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: app-egviewer-initials   # <-- change to your Web App name
+  APP_PATH: Chapter24EventGrid/webapp
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Check server.js syntax
+        working-directory: ${{ env.APP_PATH }}
+        run: node --check server.js
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_EVENTGRID }}
+          package: ${{ env.APP_PATH }}
