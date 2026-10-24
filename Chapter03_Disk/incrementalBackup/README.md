@@ -70,6 +70,9 @@ az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
 Random data is used so nothing can be compressed or deduplicated away — every byte is real.
 
 ```bash
+export MSYS_NO_PATHCONV=1
+
+echo $DISK_ID     # should start with /subscriptions/
 az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
   dd if=/dev/urandom of=/data/file1.bin bs=1M count=1024 status=none
   sync
