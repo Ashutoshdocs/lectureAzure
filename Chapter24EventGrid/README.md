@@ -176,7 +176,7 @@ The Web App runs **your own Node.js code** from the `webapp/` folder. It has **z
 lectureAzure/                                   (repo root)
 ├── .github/
 │   └── workflows/
-│       └── chapter24-eventgrid-webapp.yml      # deploys ONLY Chapter24EventGrid/webapp
+│       └── chapter24-eventgrid-webapp.yml      # manual deploy of Chapter24EventGrid/webapp
 └── Chapter24EventGrid/
     ├── README.md                               # this lab guide
     └── webapp/
@@ -186,7 +186,7 @@ lectureAzure/                                   (repo root)
             └── index.html                      # live event viewer UI (Task 1 / Task 2 colors)
 ```
 
-> ℹ️ GitHub only runs workflows from `.github/workflows/` at the **repo root**, which is why the workflow file lives outside `Chapter24EventGrid/`. It uses a `paths` filter, so it deploys only when files in `Chapter24EventGrid/webapp/` change. Your other chapters are never touched.
+> ℹ️ GitHub only runs workflows from `.github/workflows/` at the **repo root**, which is why the workflow file lives outside `Chapter24EventGrid/`. It runs **only when you trigger it manually** (`workflow_dispatch`), and it deploys only `Chapter24EventGrid/webapp`. Pushes to this or any other chapter never deploy anything.
 
 | Route | Purpose |
 |---|---|
@@ -234,7 +234,7 @@ return send(res, 200, { received: list.length });
 
    *(Or use GitHub's **Add file → Upload files** and drag the folders in, keeping the same paths.)*
 
-3. The first push triggers the workflow, and it **will fail**. That's expected because the Web App and secret don't exist yet. You'll fix it in 0.5.3.
+3. Pushing doesn't deploy anything. The workflow is manual-only, and you'll run it in 0.5.3 once the Web App and secret exist.
 
 *(Optional) Test locally first:* run `node server.js` inside `Chapter24EventGrid/webapp`, then open http://localhost:8080.
 
@@ -281,21 +281,23 @@ return send(res, 200, { received: list.length });
 **D. Set your Web App name in the workflow**
 
 1. On GitHub, open `.github/workflows/chapter24-eventgrid-webapp.yml` and click the ✏️ **Edit** icon.
-2. Change this line to your Web App name:
+2. Change this line to your Web App name. (You can skip this and type the name in the **Run workflow** form each time instead.)
 
    ```yaml
    AZURE_WEBAPP_NAME: app-egviewer-<initials>
    ```
 
-3. If your default branch isn't `main`, change `branches: [main]` as well.
-4. Click **Commit changes**.
+3. Click **Commit changes**.
 
 **E. Run the deployment**
 
-1. Committing the workflow file triggers a deployment automatically. You can also run it manually from **Actions → Chapter24 EventGrid - Deploy Web App → Run workflow**.
-2. Wait for a green ✅. The deploy step uploads only `Chapter24EventGrid/webapp`, so `server.js` and `package.json` land at the app's root.
+1. On GitHub, go to **Actions** and select **Chapter24 EventGrid - Deploy Web App** in the left list.
+2. Click **Run workflow** on the right.
+   - **Use workflow from:** your default branch (e.g. `main`)
+   - **Azure Web App name:** leave empty to use the name in the file, or type one (e.g. `app-egviewer-<initials>`)
+3. Click the green **Run workflow** button, then open the run and wait for a green ✅. The deploy step uploads only `Chapter24EventGrid/webapp`, so `server.js` and `package.json` land at the app's root.
 
-> 💡 From now on, every push that changes `Chapter24EventGrid/webapp/**` redeploys automatically. Edit the code, push, and the change goes live. Pushes to other chapters don't trigger it.
+> 💡 Whenever you change the code, push it, then click **Run workflow** again to redeploy. Nothing deploys until you run it, so you stay in control during the lecture.
 
 #### 0.5.4: Configure the app
 
@@ -411,7 +413,9 @@ return send(res, 200, { received: list.length });
      ```
 
      To insert an expression, click in the field, select the **fx** (Expression) icon, paste the expression, and click **Add**.
-5. Click **Save**.
+5. Click **Save** (and **Publish** if the designer shows a *Draft* badge).
+
+> ⚠️ Don't click **Run** / **Run draft** to test an Event Grid trigger. It fails with a `splitOn ... 'Null'` error because no event is sent. Always test by causing a real event.
 
 ### Step 1.6: Test Task 1
 
@@ -504,6 +508,10 @@ return send(res, 200, { received: list.length });
    | Prefix Filter | `/subscriptions/<sub-id>/resourceGroups/rg-eventgrid-lab/providers/Microsoft.Compute/virtualMachines/vm-eglab` |
    | Subscription Name | `sub-logic-restart` |
 
+> ⚠️ **Copy-paste the Prefix Filter; don't type it.** Copy it from **vm-eglab → Overview → JSON View → Resource ID**. A single missing `/` (e.g. `/subscriptions6f78...` instead of `/subscriptions/6f78...`) means no event ever matches. The Logic App then shows **No runs found**, with no error anywhere.
+>
+> 🎓 In **Trigger history** you'll see an entry with **Fired: False** right after saving. That's the Logic App *registering* its event subscription (HTTP `201`), not an event. Real events show **Fired: True** and create a run.
+
 ### Step 2.5: Add a condition so only "deallocate" triggers the action
 
 This step is critical. Without it, the Logic App would also react to its *own* `start` action and could loop.
@@ -590,12 +598,14 @@ This step is critical. Without it, the Logic App would also react to its *own* `
 | "Webhook validation handshake failed" when creating the Web Hook subscription | Web App not running, the URL is missing `/api/updates`, or the code didn't deploy | Browse to `/health` first to wake the app. Check the URL includes `https://` and `/api/updates` (plus `?key=...` if you set `WEBHOOK_KEY`). Check **Log stream** for the `Validation handshake` line. |
 | Web App shows "Application Error" or the default welcome page | Workflow hasn't deployed successfully, or startup failed | Check the GitHub **Actions** run and the Web App **Log stream**. Confirm `APP_PATH` is `Chapter24EventGrid/webapp` and the startup command is `node server.js`. |
 | Workflow fails at **Deploy to Azure Web App** with an auth or 401 error | Missing or wrong secret, Basic Auth off, or wrong app name | Re-check 0.5.3: SCM Basic Auth **On**, a freshly downloaded publish profile in `AZURE_WEBAPP_PUBLISH_PROFILE_EVENTGRID`, and `AZURE_WEBAPP_NAME` matching exactly. |
-| Workflow doesn't run at all | File isn't at the repo root, or branch name differs | The file must be at `lectureAzure/.github/workflows/`. Check `branches:` matches your default branch, or use **Run workflow**. |
+| No **Run workflow** button, or the workflow isn't listed under Actions | File isn't at the repo root, or isn't on the default branch | The file must be at `lectureAzure/.github/workflows/` **on the default branch**. GitHub shows the manual button only for workflows on the default branch. Also check **Settings → Actions → General** allows actions. |
 | Viewer stays on "Reconnecting…" | Live stream blocked or app restarting | Refresh the page. Events still arrive; the list reloads from `/api/events`. |
 | Events vanish after a while | Events are kept in memory; the app unloads when idle or restarts | Expected in this lab. Turn on **Always On** (Basic tier and above) or re-trigger the event. |
 | `401` in Event Grid delivery failures | `WEBHOOK_KEY` is set but the subscription URL has no key or the wrong key | Edit the subscription endpoint and add the correct `?key=`. |
 | No events in the Web App | Event type filter doesn't match | Open the subscription and check **Filters**. Look at **Metrics → Matched Events**. |
 | Logic App never runs | Trigger subscription failed to create | Open **System topic → Event Subscriptions** and confirm `sub-logic-*` exists with the status **Succeeded**. |
+| "Failed to start a logic app run… `splitOn` expression `@triggerBody()` is of type 'Null'" | You clicked **Run** / **Run draft** / **Run trigger** in the designer. The Event Grid trigger can't be run by hand because there's no event body to split | Don't use the Run button. Cause a real event instead: upload a blob (Logic App 1) or stop the VM (Logic App 2). Make sure the workflow is saved/**Published**, not just a draft. |
+| Logic App shows **No runs found**; Trigger history only shows **Fired: False** | Typo in the trigger's **Prefix Filter**, often a missing `/` after `/subscriptions` | Re-copy the VM's **Resource ID** into the Prefix Filter, save, and stop the VM again. Check the saved filter under **Resource group → Events → Event Subscriptions → Filters**. |
 | Logic App 2 fails with **AuthorizationFailed** | Missing role assignment | Re-check Step 2.3. Role assignments can take 2–5 minutes to take effect. |
 | VM restarts in a loop | Missing Condition in Step 2.5 | Make sure the condition checks for `deallocate/action` only. |
 | Too many VM events | Subject filter is too broad | Use the full VM Resource ID as the prefix. |
