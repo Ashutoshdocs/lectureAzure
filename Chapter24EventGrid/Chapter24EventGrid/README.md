@@ -2,7 +2,9 @@
 
 **Event Grid + Web App + Virtual Machine + Logic Apps: 2 Tasks, 2 Actions**
 
-This lab teaches Azure Event Grid by building two event-driven scenarios in the **Azure Portal**. The Web App runs **your own code** (a small, dependency-free Node.js app in the `webapp/` folder), which you deploy from GitHub through the Portal. Everything else is point-and-click.
+This lab teaches Azure Event Grid by building two event-driven scenarios in the **Azure Portal**. The Web App runs **your own code** (a small, dependency-free Node.js app in the `webapp/` folder), which you deploy from GitHub. Everything else is point-and-click.
+
+> 📁 **Repository:** https://github.com/Ashutoshdocs/lectureAzure, folder **`Chapter24EventGrid/`**
 
 | | Task 1: Storage Blob Events | Task 2: Virtual Machine Events |
 |---|---|---|
@@ -87,7 +89,7 @@ By the end of this lab you will be able to:
 | Requirement | Notes |
 |---|---|
 | Azure subscription | Owner or Contributor + User Access Administrator (needed for role assignment in Task 2) |
-| GitHub account | To host the `webapp/` code and deploy it via the Deployment Center |
+| GitHub repo | `Ashutoshdocs/lectureAzure` containing this `Chapter24EventGrid` folder and the workflow file |
 | Email account | Outlook.com / Office 365 (or Gmail) for the email connector in Task 1 |
 | Browser | Use any modern browser and sign in at https://portal.azure.com |
 | Resource provider | `Microsoft.EventGrid` must be registered (see Step 0.1) |
@@ -171,12 +173,20 @@ The Web App runs **your own Node.js code** from the `webapp/` folder. It has **z
 #### Project structure
 
 ```
-webapp/
-├── package.json        # "start": "node server.js" (no dependencies)
-├── server.js           # webhook + validation + live stream + API
-└── public/
-    └── index.html      # live event viewer UI (color-coded by Task 1 / Task 2)
+lectureAzure/                                   (repo root)
+├── .github/
+│   └── workflows/
+│       └── chapter24-eventgrid-webapp.yml      # deploys ONLY Chapter24EventGrid/webapp
+└── Chapter24EventGrid/
+    ├── README.md                               # this lab guide
+    └── webapp/
+        ├── package.json                        # "start": "node server.js" (no dependencies)
+        ├── server.js                           # webhook + validation + live stream + API
+        └── public/
+            └── index.html                      # live event viewer UI (Task 1 / Task 2 colors)
 ```
+
+> ℹ️ GitHub only runs workflows from `.github/workflows/` at the **repo root**, which is why the workflow file lives outside `Chapter24EventGrid/`. It uses a `paths` filter, so it deploys only when files in `Chapter24EventGrid/webapp/` change. Your other chapters are never touched.
 
 | Route | Purpose |
 |---|---|
@@ -208,17 +218,25 @@ return send(res, 200, { received: list.length });
 
 > 🎓 **Teaching point:** Event Grid treats any `200`–`204` response as *delivered*. Any other status (or a timeout) triggers the **retry policy** and, eventually, **dead-lettering**.
 
-#### 0.5.1: Push the code to GitHub
+#### 0.5.1: Push the project to your repo
 
-1. On GitHub, click **New repository** and name it `eventgrid-lab-viewer`. Make it Public or Private.
-2. Upload the **contents** of the `webapp/` folder so that `package.json` and `server.js` sit at the **root** of the repo:
-   - Click **Add file → Upload files**.
-   - Drag in `package.json`, `server.js`, and the `public` folder.
-   - Click **Commit changes** on the `main` branch.
+1. Copy the downloaded files into your local clone of `lectureAzure` so the layout matches the tree above:
+   - the `Chapter24EventGrid/` folder goes at the repo root
+   - `chapter24-eventgrid-webapp.yml` goes in `.github/workflows/` at the repo root (create the folders if they don't exist)
+2. Commit and push:
 
-> ⚠️ `package.json` must be at the repo root, not inside a `webapp/` subfolder. Otherwise App Service won't find your app.
+   ```bash
+   cd lectureAzure
+   git add Chapter24EventGrid .github/workflows/chapter24-eventgrid-webapp.yml
+   git commit -m "Add Chapter 24: Event Grid lab"
+   git push
+   ```
 
-*(Optional) Test locally first:* run `node server.js` in the `webapp` folder, then open http://localhost:8080.
+   *(Or use GitHub's **Add file → Upload files** and drag the folders in, keeping the same paths.)*
+
+3. The first push triggers the workflow, and it **will fail**. That's expected because the Web App and secret don't exist yet. You'll fix it in 0.5.3.
+
+*(Optional) Test locally first:* run `node server.js` inside `Chapter24EventGrid/webapp`, then open http://localhost:8080.
 
 #### 0.5.2: Create the Web App
 
@@ -235,26 +253,55 @@ return send(res, 200, { received: list.length });
    | Region | same as before |
    | Pricing plan | **Basic B1** (recommended) or **Free F1** |
 
-3. Click **Review + create**, then **Create**, then **Go to resource**.
+3. On the **Deployment** tab, leave **Continuous deployment** set to **Disable**. The workflow in your repo handles deployment, and enabling it here would create a second workflow for the whole repo.
+4. Click **Review + create**, then **Create**, then **Go to resource**.
 
-#### 0.5.3: Deploy your code from GitHub
+#### 0.5.3: Connect GitHub to the Web App (publish profile)
 
-1. In the Web App, go to **Deployment → Deployment Center**.
-2. On the **Settings** tab, fill in:
-   - Source: **GitHub** → **Authorize** and sign in
-   - Organization: your GitHub account
-   - Repository: `eventgrid-lab-viewer`
-   - Branch: `main`
-   - Authentication type: **Basic authentication** if offered, or keep the default (**User-assigned identity**)
-3. Click **Save**. This creates a GitHub Actions workflow in your repo that builds and deploys the app.
-4. Open the **Logs** tab and wait until the deployment shows **Success (Active)**. You can also watch it under the repo's **Actions** tab on GitHub.
+**A. Allow publish-profile authentication**
 
-> 💡 Every `git push` to `main` now redeploys automatically. Edit the code, push, and your changes go live. That's a nice way to extend the lab.
+1. In the Web App, go to **Settings → Configuration → General settings**.
+2. Set **SCM Basic Auth Publishing Credentials** to **On**, then click **Save**.
+
+**B. Download the publish profile**
+
+1. Go to the Web App's **Overview** page and click **Download publish profile** on the top toolbar.
+2. A file named `app-egviewer-<initials>.PublishSettings` downloads. Open it in a text editor and copy **all** of its contents.
+
+> 🔐 This file contains deployment credentials. Don't commit it to the repo.
+
+**C. Add it as a GitHub secret**
+
+1. On GitHub, open `Ashutoshdocs/lectureAzure` and go to **Settings → Secrets and variables → Actions**.
+2. Click **New repository secret**.
+   - Name: `AZURE_WEBAPP_PUBLISH_PROFILE_EVENTGRID`
+   - Secret: paste the publish profile contents
+3. Click **Add secret**.
+
+**D. Set your Web App name in the workflow**
+
+1. On GitHub, open `.github/workflows/chapter24-eventgrid-webapp.yml` and click the ✏️ **Edit** icon.
+2. Change this line to your Web App name:
+
+   ```yaml
+   AZURE_WEBAPP_NAME: app-egviewer-<initials>
+   ```
+
+3. If your default branch isn't `main`, change `branches: [main]` as well.
+4. Click **Commit changes**.
+
+**E. Run the deployment**
+
+1. Committing the workflow file triggers a deployment automatically. You can also run it manually from **Actions → Chapter24 EventGrid - Deploy Web App → Run workflow**.
+2. Wait for a green ✅. The deploy step uploads only `Chapter24EventGrid/webapp`, so `server.js` and `package.json` land at the app's root.
+
+> 💡 From now on, every push that changes `Chapter24EventGrid/webapp/**` redeploys automatically. Edit the code, push, and the change goes live. Pushes to other chapters don't trigger it.
 
 #### 0.5.4: Configure the app
 
 1. Go to **Settings → Configuration → General settings**.
    - Set **Startup Command** to `node server.js`
+   - (SCM Basic Auth Publishing Credentials is already **On** from 0.5.3)
    - If you chose **Basic B1**, turn **Always On** to **On**. This keeps the in-memory event list from being lost when the app idles.
    - Click **Save**.
 2. *(Optional, recommended)* Protect the webhook with a shared key:
@@ -541,7 +588,9 @@ This step is critical. Without it, the Logic App would also react to its *own* `
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | "Webhook validation handshake failed" when creating the Web Hook subscription | Web App not running, the URL is missing `/api/updates`, or the code didn't deploy | Browse to `/health` first to wake the app. Check the URL includes `https://` and `/api/updates` (plus `?key=...` if you set `WEBHOOK_KEY`). Check **Log stream** for the `Validation handshake` line. |
-| Web App shows "Application Error" or the default welcome page | Build/startup failed, or files aren't at the repo root | Check **Deployment Center → Logs** and **Log stream**. Make sure `package.json` and `server.js` are at the root of the deployed branch. Set the startup command to `node server.js`. |
+| Web App shows "Application Error" or the default welcome page | Workflow hasn't deployed successfully, or startup failed | Check the GitHub **Actions** run and the Web App **Log stream**. Confirm `APP_PATH` is `Chapter24EventGrid/webapp` and the startup command is `node server.js`. |
+| Workflow fails at **Deploy to Azure Web App** with an auth or 401 error | Missing or wrong secret, Basic Auth off, or wrong app name | Re-check 0.5.3: SCM Basic Auth **On**, a freshly downloaded publish profile in `AZURE_WEBAPP_PUBLISH_PROFILE_EVENTGRID`, and `AZURE_WEBAPP_NAME` matching exactly. |
+| Workflow doesn't run at all | File isn't at the repo root, or branch name differs | The file must be at `lectureAzure/.github/workflows/`. Check `branches:` matches your default branch, or use **Run workflow**. |
 | Viewer stays on "Reconnecting…" | Live stream blocked or app restarting | Refresh the page. Events still arrive; the list reloads from `/api/events`. |
 | Events vanish after a while | Events are kept in memory; the app unloads when idle or restarts | Expected in this lab. Turn on **Always On** (Basic tier and above) or re-trigger the event. |
 | `401` in Event Grid delivery failures | `WEBHOOK_KEY` is set but the subscription URL has no key or the wrong key | Edit the subscription endpoint and add the correct `?key=`. |
