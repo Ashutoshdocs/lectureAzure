@@ -25,6 +25,14 @@ SNAP1="snap1-baseline"
 SNAP2="snap2-incremental"
 ```
 
+> **Using Git Bash on Windows (MINGW64)?** Run this first, in every new terminal:
+>
+> ```bash
+> export MSYS_NO_PATHCONV=1
+> ```
+>
+> Git Bash rewrites arguments that start with `/` into Windows paths. That breaks the disk ID (`/subscriptions/...`) and makes `az snapshot create` fail with *"Only CreateOption.Copy, CreateOption.CopyStart or CreateOption.CopyFromSanSnapshot are supported for incremental snapshots."* On Windows, also use `python` instead of `./page_ranges.py` in Step 8 (for example, `python page_ranges.py "$SAS1"`).
+
 ---
 
 ## Step 1 — Create the resource group and VM with an empty data disk
@@ -70,9 +78,6 @@ az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
 Random data is used so nothing can be compressed or deduplicated away — every byte is real.
 
 ```bash
-export MSYS_NO_PATHCONV=1
-
-echo $DISK_ID     # should start with /subscriptions/
 az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
   dd if=/dev/urandom of=/data/file1.bin bs=1M count=1024 status=none
   sync
@@ -346,6 +351,7 @@ This deletes the VM, disks and both snapshots.
 
 | Problem | Fix |
 |---|---|
+| `Only CreateOption.Copy, CreateOption.CopyStart or CreateOption.CopyFromSanSnapshot are supported for incremental snapshots` | You're in Git Bash on Windows and it rewrote the disk ID. Run `export MSYS_NO_PATHCONV=1` and retry. |
 | `HTTP Error 403` from `page_ranges.py` | The SAS expired or was revoked; re-run Step 8.2. |
 | `HTTP Error 400` in diff mode | Both snapshots must be incremental and come from the same disk. |
 | Delta C is noticeably bigger than 2 GiB | The filesystem was still initializing; make sure Step 2 used `lazy_itable_init=0,lazy_journal_init=0`. |
