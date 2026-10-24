@@ -1,6 +1,13 @@
-# Lab: Prove Azure Incremental Snapshots Store Only Changed Data
+# Lab (Azure Portal): Prove Incremental Snapshots Store Only Changed Data
 
-This hands-on lab creates a VM, writes a file, takes **Snapshot 1**, writes more data, takes **Snapshot 2**, and then **proves** that Snapshot 2 contains only the new data — not a full copy of the disk. It finishes by turning the measured numbers into storage and cost savings.
+This lab is done almost entirely in the **Azure portal**. You will:
+
+1. Create a VM with an empty data disk
+2. Write a **1 GiB** file → take **Snapshot 1**
+3. Write **2 GiB** more → take **Snapshot 2**
+4. **Prove** Snapshot 2 stores only the new ~2 GiB, not a full copy of the disk
+5. Prove Snapshot 2 can still restore **everything**
+6. Turn the measured numbers into storage and cost savings
 
 ```
  ┌──────────────┐   write 1 GiB    ┌──────────────┐   write 2 GiB    ┌──────────────┐
@@ -10,161 +17,197 @@ This hands-on lab creates a VM, writes a file, takes **Snapshot 1**, writes more
                                      baseline                          ONLY the delta
 ```
 
-**Time:** ~20 minutes  **Cost:** a few cents if you delete everything at the end (Step 10)
-**Run from:** [Azure Cloud Shell](https://shell.azure.com) (Bash) or any machine with Azure CLI and Python 3
+**Time:** ~30 minutes  **Cost:** a few cents if you delete everything at the end
+**You need:** an Azure subscription and a browser. Commands inside the VM run through the portal's **Run command** page; one verification script runs in **Cloud Shell**, which opens inside the portal.
 
----
-
-## Step 0 — Set variables
-
-```bash
-RG="rg-incremental-snapshot-lab"
-LOCATION="centralindia"
-VM="vm-snaplab"
-SNAP1="snap1-baseline"
-SNAP2="snap2-incremental"
-```
-
-> **Using Git Bash on Windows (MINGW64)?** Run this first, in every new terminal:
+> Prefer the command line? See [README-cli.md](README-cli.md).
 >
-> ```bash
-> export MSYS_NO_PATHCONV=1
-> ```
->
-> Git Bash rewrites arguments that start with `/` into Windows paths. That breaks the disk ID (`/subscriptions/...`) and makes `az snapshot create` fail with *"Only CreateOption.Copy, CreateOption.CopyStart or CreateOption.CopyFromSanSnapshot are supported for incremental snapshots."* On Windows, also use `python` instead of `./page_ranges.py` in Step 8 (for example, `python page_ranges.py "$SAS1"`).
+> Portal menus change from time to time. If a button has moved, use the portal's top search bar to find the page by name.
+
+**Names used in this lab**
+
+| Item | Name |
+|---|---|
+| Resource group | `rg-incremental-snapshot-lab` |
+| Region | Central India (any region works) |
+| VM | `vm-snaplab` |
+| Data disk | `vm-snaplab_DataDisk_0` (the portal's default name) |
+| Snapshot 1 | `snap1-baseline` |
+| Snapshot 2 | `snap2-incremental` |
 
 ---
 
-## Step 1 — Create the resource group and VM with an empty data disk
+## Step 1 — Create a resource group
+
+1. In the portal search bar, type **Resource groups** and open it.
+2. Click **+ Create**.
+3. **Resource group:** `rg-incremental-snapshot-lab`. **Region:** Central India.
+4. Click **Review + create**, then **Create**.
+
+---
+
+## Step 2 — Create the VM with an empty 32 GiB data disk
+
+1. Search for **Virtual machines** and open it. Click **+ Create** → **Azure virtual machine**.
+2. **Basics** tab:
+
+   | Field | Value |
+   |---|---|
+   | Resource group | `rg-incremental-snapshot-lab` |
+   | Virtual machine name | `vm-snaplab` |
+   | Region | Central India |
+   | Image | **Ubuntu Server 22.04 LTS** |
+   | Size | **Standard_B2s** (or any small size available) |
+   | Authentication type | SSH public key → *Generate new key pair* |
+   | Username | `azureuser` |
+   | Public inbound ports | **None** (we never SSH in; Run command is enough) |
+
+3. Open the **Disks** tab. Under **Data disks**, click **Create and attach a new disk**:
+   - **Size:** 32 GiB
+   - **Disk SKU:** Standard SSD (any SKU works; snapshots are stored on Standard storage regardless)
+   - Click **OK**. It should appear with **LUN 0**.
+4. Click **Review + create** → **Create**. When asked, **Download private key and create resource**.
+5. Wait for *Your deployment is complete*, then click **Go to resource**.
+
+---
+
+## Step 3 — Format and mount the data disk
+
+1. On the VM page, in the left menu open **Operations** → **Run command** → **RunShellScript**.
+2. Paste the script below and click **Run**. Wait for the output to appear (about a minute).
 
 ```bash
-az group create -n $RG -l $LOCATION
-
-az vm create \
-  -g $RG -n $VM \
-  --image Ubuntu2204 \
-  --size Standard_B2s \
-  --admin-username azureuser \
-  --generate-ssh-keys \
-  --data-disk-sizes-gb 32 \
-  --public-ip-address ""          # no public IP needed; we use run-command
-
-# Capture the data disk's resource ID
-DISK_ID=$(az vm show -g $RG -n $VM \
-  --query "storageProfile.dataDisks[0].managedDisk.id" -o tsv)
-echo $DISK_ID
+# Format the empty data disk (LUN 0) and mount it at /data.
+# lazy_*_init=0 finishes all filesystem setup now, so it can't leak into Snapshot 2 later.
+DEV=/dev/disk/azure/scsi1/lun0
+mkfs.ext4 -F -E lazy_itable_init=0,lazy_journal_init=0 $DEV
+mkdir -p /data
+mount $DEV /data
+df -h /data
 ```
+
+✅ **Expected output** ends with a line showing `/data` with about **31G** size.
 
 ---
 
-## Step 2 — Format and mount the data disk
+## Step 4 — Generate data: write file 1 (1 GiB)
 
-`lazy_itable_init=0` makes the filesystem finish all its initialization writes now, so they don't leak into Snapshot 2's delta later.
+Open **Run command** → **RunShellScript** again, paste, and **Run**:
 
 ```bash
-az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
-  DEV=/dev/disk/azure/scsi1/lun0
-  mkfs.ext4 -F -E lazy_itable_init=0,lazy_journal_init=0 $DEV
-  mkdir -p /data
-  mount $DEV /data
-  df -h /data
-' --query "value[0].message" -o tsv
+# Generate 1 GiB of random (incompressible) data on the data disk
+mountpoint -q /data || { echo "ERROR: /data is not mounted - rerun Step 3"; exit 1; }
+dd if=/dev/urandom of=/data/file1.bin bs=1M count=1024 status=none
+sync
+echo "---- files on /data ----"
+ls -lh /data
+echo "---- checksums ----"
+sha256sum /data/file1.bin
 ```
+
+✅ **Expected:** `file1.bin` listed at **1.0G**, plus one SHA-256 line.
+📝 **Copy the checksum somewhere** — you'll compare it in Step 10.
+
+❗ If you see `ERROR` or `No such file`, fix it before continuing. Snapshot 1 must contain `file1.bin`.
 
 ---
 
-## Step 3 — Create the first file (1 GiB of random data)
+## Step 5 — Take Snapshot 1 (incremental)
 
-Random data is used so nothing can be compressed or deduplicated away — every byte is real.
+1. Search for **Disks** and open it. Click **`vm-snaplab_DataDisk_0`** (the data disk, **not** the `_OsDisk_` one).
+2. At the top of the disk page, click **+ Create snapshot**.
+3. **Basics** tab:
+
+   | Field | Value |
+   |---|---|
+   | Resource group | `rg-incremental-snapshot-lab` |
+   | Name | `snap1-baseline` |
+   | **Snapshot type** | **Incremental** ← important |
+   | Storage type | Standard (default) |
+
+4. Click **Review + create** → **Create**.
+
+The **first** incremental snapshot of a disk is the baseline: it stores all used blocks (≈ 1 GiB of file data plus filesystem metadata).
+
+---
+
+## Step 6 — Generate more data: write file 2 (2 GiB)
+
+Back on **`vm-snaplab`** → **Run command** → **RunShellScript**:
 
 ```bash
-az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
-  dd if=/dev/urandom of=/data/file1.bin bs=1M count=1024 status=none
-  sync
-  ls -lh /data
-  sha256sum /data/file1.bin
-' --query "value[0].message" -o tsv
+# Generate 2 GiB MORE random data; file1 stays untouched
+mountpoint -q /data || { echo "ERROR: /data is not mounted - rerun Step 3"; exit 1; }
+test -f /data/file1.bin || { echo "ERROR: file1.bin missing - see Troubleshooting"; exit 1; }
+dd if=/dev/urandom of=/data/file2.bin bs=1M count=2048 status=none
+sync
+echo "---- files on /data ----"
+ls -lh /data
+echo "---- checksums ----"
+sha256sum /data/file1.bin /data/file2.bin
 ```
 
-📝 **Note the SHA-256 of `file1.bin`** — you'll use it in Step 9.
+✅ **Expected:** `file1.bin` at **1.0G** and `file2.bin` at **2.0G**, plus **two** SHA-256 lines.
+📝 **Copy both checksums.** The `file1.bin` checksum should match the one from Step 4.
 
 ---
 
-## Step 4 — Take Snapshot 1 (incremental baseline)
+## Step 7 — Take Snapshot 2 (incremental)
 
-```bash
-az snapshot create \
-  -g $RG -n $SNAP1 \
-  --source $DISK_ID \
-  --incremental true \
-  -l $LOCATION \
-  --query "{name:name, incremental:incremental, state:provisioningState}" -o table
-```
+Repeat Step 5 on the same data disk with:
 
-The **first** incremental snapshot of a disk is the baseline: it stores all used blocks on the disk (≈ 1 GiB of file data plus filesystem metadata).
+| Field | Value |
+|---|---|
+| Name | `snap2-incremental` |
+| **Snapshot type** | **Incremental** |
 
 ---
 
-## Step 5 — Add more data (2 GiB more)
+## Step 8 — Look at both snapshots in the portal
 
-```bash
-az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
-  dd if=/dev/urandom of=/data/file2.bin bs=1M count=2048 status=none
-  sync
-  ls -lh /data
-  sha256sum /data/file1.bin /data/file2.bin
-' --query "value[0].message" -o tsv
-```
+1. Search for **Snapshots** and open it.
+2. Click each snapshot and look at its **Overview** page.
 
-📝 **Note both SHA-256 values.** The disk now holds ≈ 3 GiB of data.
+| | `snap1-baseline` | `snap2-incremental` |
+|---|---|---|
+| Snapshot type | Incremental | Incremental |
+| Size | 32 GiB | 32 GiB |
+| Source disk | `vm-snaplab_DataDisk_0` | `vm-snaplab_DataDisk_0` |
 
----
-
-## Step 6 — Take Snapshot 2 (incremental)
-
-```bash
-az snapshot create \
-  -g $RG -n $SNAP2 \
-  --source $DISK_ID \
-  --incremental true \
-  -l $LOCATION \
-  --query "{name:name, incremental:incremental, state:provisioningState}" -o table
-```
+> ⚠️ **Why both say 32 GiB:** the portal shows the size of the **disk the snapshot can restore**, not the data it stores or what you're billed for. The portal has no page that shows a snapshot's stored data, so Step 9 measures it directly.
 
 ---
 
-## Step 7 — Look at both snapshots in Azure
+## Step 9 — VERIFY: prove Snapshot 2 holds only the incremental data
 
-```bash
-az snapshot list -g $RG \
-  --query "[].{name:name, incremental:incremental, diskSizeGb:diskSizeGb, created:timeCreated}" \
-  -o table
-```
-
-Example output:
-
-```
-Name               Incremental    DiskSizeGb    Created
------------------  -------------  ------------  --------------------------------
-snap1-baseline     True           32            2026-10-24T09:05:11.123456+00:00
-snap2-incremental  True           32            2026-10-24T09:12:47.654321+00:00
-```
-
-> ⚠️ `diskSizeGb` shows **32 for both** — that's the size of the disk the snapshot can restore, **not** what it stores or what you're billed for. To see what's actually stored, we need to look at the snapshot's data blocks (Step 8).
-
----
-
-## Step 8 — PROVE Snapshot 2 holds only the incremental data
-
-Azure lets you read a snapshot's **page ranges** (the blocks that contain data) through a temporary read-only SAS URL. It also lets you ask for **only the ranges that changed between two snapshots**. We'll measure three things:
+Azure lets you read which data blocks a snapshot holds through a temporary read-only link, and lets you ask for **only the blocks that changed between two snapshots**. You'll measure three numbers:
 
 | Measurement | What it answers |
 |---|---|
 | **A.** Data in Snapshot 1 | How big is the baseline? |
-| **B.** Data visible through Snapshot 2 | What would a *full* backup of the disk now contain? |
-| **C.** Changed data between Snapshot 1 → Snapshot 2 | What Snapshot 2 *actually* stores and bills |
+| **B.** Data visible through Snapshot 2 | What would a **full** backup of the disk now contain? |
+| **C.** Data changed from Snapshot 1 → Snapshot 2 | What Snapshot 2 **actually** stores and bills |
 
-### 8.1 Create the measurement script
+### 9.1 Generate a read-only URL for each snapshot
+
+For **`snap1-baseline`**:
+
+1. Open the snapshot. In the left menu, go to **Settings** → **Snapshot export**.
+2. Set **URL expiry (seconds)** to `3600`.
+3. Click **Generate URL**, then **copy** the URL. Paste it into Notepad labeled **SAS1**.
+
+Repeat for **`snap2-incremental`** and label it **SAS2**.
+
+> Treat these URLs like passwords: anyone with them can read the disk's contents until they expire or you cancel them (Step 9.5).
+
+### 9.2 Open Cloud Shell
+
+1. Click the **Cloud Shell** icon (**>_**) in the portal's top bar.
+2. Choose **Bash**. If asked about storage, pick the option that needs no storage account (or accept the defaults).
+
+### 9.3 Create the verification script
+
+Paste this whole block into Cloud Shell and press **Enter**:
 
 ```bash
 cat > page_ranges.py <<'EOF'
@@ -172,8 +215,8 @@ cat > page_ranges.py <<'EOF'
 """
 Sum the data stored in an Azure managed-disk snapshot, using the Get Page Ranges API.
 
-  page_ranges.py <SNAPSHOT_SAS>                 -> all data blocks in the snapshot
-  page_ranges.py <SNAPSHOT_SAS> <PREVIOUS_SAS>  -> only blocks changed since PREVIOUS
+  page_ranges.py <SNAPSHOT_URL>                 -> all data blocks in the snapshot
+  page_ranges.py <SNAPSHOT_URL> <PREVIOUS_URL>  -> only blocks changed since PREVIOUS
 """
 import sys
 import urllib.parse
@@ -213,18 +256,14 @@ EOF
 chmod +x page_ranges.py
 ```
 
-### 8.2 Grant temporary read access to both snapshots
+### 9.4 Run the verification
+
+Replace the placeholders with the two URLs you copied. **Keep the double quotes** — the URLs contain `&` characters.
 
 ```bash
-SAS1=$(az snapshot grant-access -g $RG -n $SNAP1 \
-  --duration-in-seconds 3600 --query accessSas -o tsv)
-SAS2=$(az snapshot grant-access -g $RG -n $SNAP2 \
-  --duration-in-seconds 3600 --query accessSas -o tsv)
-```
+SAS1="<paste SAS1 URL here>"
+SAS2="<paste SAS2 URL here>"
 
-### 8.3 Measure
-
-```bash
 echo "A. Data in Snapshot 1 (baseline):"
 ./page_ranges.py "$SAS1"
 
@@ -235,7 +274,7 @@ echo "C. Data changed between Snapshot 1 and Snapshot 2 (what Snapshot 2 really 
 ./page_ranges.py "$SAS2" "$SAS1"
 ```
 
-Example output (your exact bytes will differ slightly because of filesystem metadata and the journal):
+Example output (your exact bytes will differ slightly because of filesystem metadata):
 
 ```
 A. Data in Snapshot 1 (baseline):
@@ -246,7 +285,7 @@ C. Data changed between Snapshot 1 and Snapshot 2 (what Snapshot 2 really stores
 2,155,356,160 bytes  (2.01 GiB)
 ```
 
-### 8.4 Read the proof
+### Reading the proof
 
 ```
  B (full view of disk)          ████████████████████████████████  3.12 GiB
@@ -257,44 +296,54 @@ C. Data changed between Snapshot 1 and Snapshot 2 (what Snapshot 2 really stores
                     1.11 + 2.01 = 3.12 GiB  ✔
 ```
 
-- **C ≈ 2 GiB** — exactly the size of `file2.bin` (plus a little filesystem metadata). Snapshot 2 did **not** copy `file1.bin` again.
-- **C ≠ B** — if Snapshot 2 were a full backup it would hold 3.12 GiB. It holds 2.01 GiB.
-- **A + C = B** — Snapshot 2 reuses Snapshot 1's blocks and adds only the delta.
+| Check | Result | Meaning |
+|---|---|---|
+| A ≈ 1 GiB | ✔ | Snapshot 1 holds `file1.bin` |
+| C ≈ 2 GiB | ✔ | Snapshot 2 holds only `file2.bin` |
+| C < B | ✔ | Snapshot 2 is **not** a full copy (a full copy would be ≈ 3 GiB) |
+| A + C ≈ B | ✔ | Snapshot 2 reuses Snapshot 1's blocks for `file1.bin` |
 
-### 8.5 Revoke access
+### 9.5 Revoke the URLs
 
-```bash
-az snapshot revoke-access -g $RG -n $SNAP1
-az snapshot revoke-access -g $RG -n $SNAP2
-```
-
----
-
-## Step 9 — Prove Snapshot 2 is still a complete restore point
-
-Incremental doesn't mean partial. Restore a disk from **Snapshot 2 alone** and both files come back intact.
-
-```bash
-SNAP2_ID=$(az snapshot show -g $RG -n $SNAP2 --query id -o tsv)
-
-az disk create -g $RG -n disk-restored-from-snap2 --source $SNAP2_ID --sku Standard_LRS -l $LOCATION
-az vm disk attach -g $RG --vm-name $VM --name disk-restored-from-snap2 --lun 1
-
-az vm run-command invoke -g $RG -n $VM --command-id RunShellScript --scripts '
-  mkdir -p /restored
-  mount -o ro /dev/disk/azure/scsi1/lun1 /restored
-  ls -lh /restored
-  sha256sum /restored/file1.bin /restored/file2.bin
-' --query "value[0].message" -o tsv
-```
-
-✅ The SHA-256 values match the ones from Step 5. A disk created from a 2 GiB incremental snapshot contains all 3 GiB of data — Azure supplies `file1.bin` from the baseline blocks behind the scenes.
+On each snapshot, go back to **Settings** → **Snapshot export** and click **Cancel export**.
 
 ---
 
-## Step 10 — Translate the proof into storage and money
+## Step 10 — VERIFY: Snapshot 2 is still a complete restore point
 
-Using the measured values from Step 8 and an illustrative snapshot price of **$0.05 per GiB per month** (Standard LRS/ZRS — check your region's rate on the [Managed Disks pricing page](https://azure.microsoft.com/en-us/pricing/details/managed-disks/)):
+Incremental doesn't mean partial. A disk built from **Snapshot 2 alone** contains both files.
+
+**Create a disk from Snapshot 2**
+
+1. Open **`snap2-incremental`** and click **+ Create disk** at the top.
+2. **Disk name:** `disk-restored-from-snap2`. Resource group and region: same as the lab. Any SKU.
+3. Click **Review + create** → **Create**.
+
+**Attach it to the VM**
+
+1. Open **`vm-snaplab`** → **Settings** → **Disks**.
+2. Click **Attach existing disks**, choose **`disk-restored-from-snap2`**, set **LUN** to **1**.
+3. Click **Save** (or **Apply**).
+
+**Check the files** — **Run command** → **RunShellScript**:
+
+```bash
+# Mount the restored disk (LUN 1) read-only and verify both files
+mkdir -p /restored
+mount -o ro /dev/disk/azure/scsi1/lun1 /restored
+echo "---- files on restored disk ----"
+ls -lh /restored
+echo "---- checksums ----"
+sha256sum /restored/file1.bin /restored/file2.bin
+```
+
+✅ **Expected:** both files listed, and both checksums **match the ones from Step 6**. A disk created from a ~2 GiB incremental snapshot has all ~3 GiB of data; Azure supplies `file1.bin` from Snapshot 1's blocks behind the scenes.
+
+---
+
+## Step 11 — What this saves in storage and money
+
+Using the measured values from Step 9 and an illustrative snapshot price of **$0.05 per GiB per month** (check your region's real rate on the [Managed Disks pricing page](https://azure.microsoft.com/en-us/pricing/details/managed-disks/)):
 
 | | Full snapshots | Incremental snapshots |
 |---|---|---|
@@ -304,11 +353,11 @@ Using the measured values from Step 8 and an illustrative snapshot price of **$0
 | **Monthly cost** | $0.21 | $0.16 |
 | **Saved** | — | **1.11 GiB · 26%** |
 
-The lab saves "only" 26% because we changed 2 GiB on a disk holding 1 GiB — a 200% change rate, far higher than real workloads. The savings equal exactly the data that **didn't** change: everything in Snapshot 1 that Snapshot 2 didn't have to store again.
+The lab saves "only" 26% because it adds 2 GiB to a disk holding 1 GiB — a 200% change, far more than real workloads. The amount saved always equals the data that **didn't** change.
 
 ### At realistic scale
 
-The same mechanism on a production disk with **500 GiB used** and **20 GiB changed per day**:
+A production disk with **500 GiB used** and **20 GiB changed per day**:
 
 | Backups kept | Full snapshots | Incremental snapshots | Storage saved | Monthly saved (@ $0.05) |
 |---|---|---|---|---|
@@ -317,49 +366,61 @@ The same mechanism on a production disk with **500 GiB used** and **20 GiB chang
 | 30 (one month) | 15,000 GiB | 1,080 GiB | 92.8% | $696.00 |
 
 ```
-Full storage        = N × Used
-Incremental storage = Used + (N − 1) × Changed
+Full storage        = Backups × Used
+Incremental storage = Used + (Backups − 1) × Changed
 ```
 
 At 30 daily restore points that's about **$8,350 per year saved on one disk**.
 
-### Confirm on your bill
+### Confirm on your bill (optional)
 
-After 24–48 hours, open **Cost Management → Cost analysis**, filter by resource group `rg-incremental-snapshot-lab`, and group by **Resource**. `snap2-incremental` is billed for roughly 2 GiB, not the full 3 GiB.
-
----
-
-## Step 11 — Clean up
-
-```bash
-az group delete -n $RG --yes --no-wait
-```
-
-This deletes the VM, disks and both snapshots.
+After 24–48 hours: search **Cost Management** → **Cost analysis**. Set the scope to your subscription, add the filter **Resource group = `rg-incremental-snapshot-lab`**, and group by **Resource**. `snap2-incremental` is charged for roughly 2 GiB, not 3 GiB.
 
 ---
 
-## How it works
+## Step 12 — Clean up
 
-- Azure tracks which 512-byte pages of a managed disk change between snapshots.
-- The **first** incremental snapshot stores every used page.
-- Each **later** incremental snapshot stores only pages changed since the previous one, and points to the earlier snapshots for everything else.
-- Incremental snapshots are always kept on Standard storage (even for Premium SSD disks) and billed per GiB of data actually stored.
-- Deleting Snapshot 1 is safe: Azure keeps the pages Snapshot 2 still needs, so Snapshot 2 stays fully restorable.
+1. Open **Resource groups** → **`rg-incremental-snapshot-lab`**.
+2. Click **Delete resource group**, type the name to confirm, and click **Delete**.
+
+This removes the VM, all disks and both snapshots.
+
+---
+
+## Quick reference: data and verification scripts
+
+| When | Where | Script |
+|---|---|---|
+| Format & mount | VM → Run command | Step 3 |
+| Generate 1 GiB | VM → Run command | Step 4 |
+| Generate 2 GiB more | VM → Run command | Step 6 |
+| Measure snapshot data (A, B, C) | Cloud Shell | Steps 9.3–9.4 |
+| Verify restore | VM → Run command | Step 10 |
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `Only CreateOption.Copy, CreateOption.CopyStart or CreateOption.CopyFromSanSnapshot are supported for incremental snapshots` | You're in Git Bash on Windows and it rewrote the disk ID. Run `export MSYS_NO_PATHCONV=1` and retry. |
-| `HTTP Error 403` from `page_ranges.py` | The SAS expired or was revoked; re-run Step 8.2. |
-| `HTTP Error 400` in diff mode | Both snapshots must be incremental and come from the same disk. |
-| Delta C is noticeably bigger than 2 GiB | The filesystem was still initializing; make sure Step 2 used `lazy_itable_init=0,lazy_journal_init=0`. |
-| `mount` fails on `/dev/disk/azure/scsi1/lun1` | Wait a few seconds after `az vm disk attach` and retry. |
-| `Standard_B2s` not available in your region | Pick another size, e.g. `--size Standard_D2s_v5`. |
+| `ERROR: /data is not mounted` | The VM rebooted or Step 3 didn't finish. Run only the last three lines of Step 3 (`mkdir`, `mount`, `df`) — **don't** re-run `mkfs`, it would erase the disk. |
+| `file1.bin: No such file or directory` in Step 6 | Step 4 didn't write to the data disk. Delete any snapshots, then on the VM's **Disks** page detach and delete the data disk, attach a **new** empty 32 GiB disk at LUN 0, and redo Steps 3–7. Deleting `file2.bin` isn't enough — its blocks stay on the disk and would end up in Snapshot 1. |
+| No **Snapshot type** option, or only *Full* | Make sure you started from the **disk** page (Step 5), and that the disk isn't an Ultra or Premium SSD v2 disk in an unsupported setup. Use Standard SSD for this lab. |
+| `HTTP Error 403` in Cloud Shell | The URL expired or was cancelled, or a character was lost when pasting. Generate it again (Step 9.1). |
+| `HTTP Error 400` for measurement C | Both snapshots must be **Incremental** and come from the **same** disk. |
+| C is noticeably bigger than 2 GiB | The filesystem was still initializing; Step 3 must include `lazy_itable_init=0,lazy_journal_init=0`. |
+| Restored disk won't mount in Step 10 | Wait a minute after attaching, then run the Step 10 script again. Check the disk shows LUN 1 on the VM's **Disks** page. |
+| Run command seems stuck | Only one Run command can run at a time. Wait for the previous one to finish, then retry. |
+
+## How it works
+
+- Azure tracks which 512-byte pages of a managed disk change between snapshots.
+- The **first** incremental snapshot stores every used page.
+- Each **later** incremental snapshot stores only the pages changed since the previous one, and refers to earlier snapshots for everything else.
+- Incremental snapshots are always kept on Standard storage and billed per GiB actually stored.
+- Deleting Snapshot 1 is safe: Azure keeps the pages Snapshot 2 still needs, so Snapshot 2 stays fully restorable.
 
 ## References
 
 - [Create an incremental snapshot for managed disks](https://learn.microsoft.com/en-us/azure/virtual-machines/disks-incremental-snapshots)
+- [Run scripts in a Linux VM with Run command](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/run-command)
 - [Get Page Ranges REST API](https://learn.microsoft.com/en-us/rest/api/storageservices/get-page-ranges)
 - [Azure Managed Disks pricing](https://azure.microsoft.com/en-us/pricing/details/managed-disks/)
