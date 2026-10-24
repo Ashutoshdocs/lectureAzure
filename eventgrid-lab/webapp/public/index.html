@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Grid Lab Viewer</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --text: #1c1f24; --muted: #6b7280;
+    --border: #e3e5e9; --accent: #0067b8;
+    --blob: #0e7a4f; --vm: #7a3fb8; --valid: #b26b00; --other: #4b5563;
+    --code-bg: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121417; --panel: #1b1e23; --text: #e7e9ec; --muted: #9aa1ab;
+      --border: #2b3038; --accent: #4ea3ff;
+      --blob: #3fcf8e; --vm: #b88cff; --valid: #f0b44c; --other: #9aa1ab;
+      --code-bg: #14171b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 20px 24px 12px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .sub { color: var(--muted); }
+  .endpoint { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .endpoint code { background: var(--code-bg); padding: 4px 8px; border-radius: 4px; word-break: break-all; }
+  button { font: inherit; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px;
+           background: var(--panel); color: var(--text); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  main { padding: 16px 24px; max-width: 1100px; margin: 0 auto; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .status { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--valid); margin-right: 5px; }
+  .dot.on { background: var(--blob); }
+  select { font: inherit; padding: 5px; border-radius: 6px; border: 1px solid var(--border);
+           background: var(--panel); color: var(--text); }
+  .evt { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--other);
+         border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  .evt.blob { border-left-color: var(--blob); }
+  .evt.vm { border-left-color: var(--vm); }
+  .evt.validation { border-left-color: var(--valid); }
+  .evt summary { padding: 10px 14px; cursor: pointer; list-style: none; display: grid;
+                 grid-template-columns: auto 1fr auto; gap: 12px; align-items: baseline; }
+  .evt summary::-webkit-details-marker { display: none; }
+  .tag { font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+         color: var(--panel); background: var(--other); white-space: nowrap; }
+  .blob .tag { background: var(--blob); } .vm .tag { background: var(--vm); } .validation .tag { background: var(--valid); }
+  .type { font-weight: 600; word-break: break-all; }
+  .subject { color: var(--muted); font-size: 12px; word-break: break-all; }
+  .time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .highlight { padding: 0 14px 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; }
+  .highlight div span { color: var(--muted); }
+  pre { margin: 0; padding: 12px 14px; background: var(--code-bg); border-top: 1px solid var(--border);
+        overflow-x: auto; font: 12px/1.45 ui-monospace, Consolas, monospace; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+  @media (max-width: 600px) {
+    header, main { padding-left: 16px; padding-right: 16px; }
+    .evt summary { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Event Grid Lab Viewer</h1>
+  <div class="sub">Custom webhook handler for Azure Event Grid. Events appear here live.</div>
+  <div class="endpoint">
+    <span class="sub">Webhook endpoint:</span>
+    <code id="endpoint"></code>
+    <button id="copy">Copy</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat"><b id="s-total">0</b><span>Total events</span></div>
+    <div class="stat"><b id="s-blob">0</b><span>Task 1: Storage blob</span></div>
+    <div class="stat"><b id="s-vm">0</b><span>Task 2: VM / Resource</span></div>
+    <div class="stat"><b id="s-valid">0</b><span>Validation handshakes</span></div>
+  </div>
+
+  <div class="toolbar">
+    <label for="filter" class="sub">Show</label>
+    <select id="filter">
+      <option value="all">All events</option>
+      <option value="blob">Task 1: Storage blob</option>
+      <option value="vm">Task 2: VM / Resource</option>
+      <option value="validation">Validation</option>
+    </select>
+    <button id="clear">Clear</button>
+    <span class="status"><span class="dot" id="dot"></span><span id="status">Connecting…</span></span>
+  </div>
+
+  <div id="list"></div>
+</main>
+
+<script>
+  const endpoint = location.origin + "/api/updates";
+  document.getElementById("endpoint").textContent = endpoint;
+  document.getElementById("copy").onclick = () => navigator.clipboard?.writeText(endpoint);
+
+  let events = [];
+  const listEl = document.getElementById("list");
+  const filterEl = document.getElementById("filter");
+
+  function category(e) {
+    if (e.source === "validation") return "validation";
+    const t = e.type || "";
+    if (t.startsWith("Microsoft.Storage.")) return "blob";
+    if (t.startsWith("Microsoft.Resources.") || t.startsWith("Microsoft.Compute.")) return "vm";
+    return "other";
+  }
+
+  const labels = { blob: "Task 1 · Blob", vm: "Task 2 · VM", validation: "Validation", other: "Event" };
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+
+  function highlights(e) {
+    const d = e.data || {};
+    const rows = [];
+    const cat = category(e);
+    if (cat === "blob") {
+      rows.push(["Blob", (e.subject || "").split("/blobs/")[1]]);
+      rows.push(["Size", d.contentLength != null ? d.contentLength + " bytes" : null]);
+      rows.push(["API", d.api]);
+      rows.push(["Content type", d.contentType]);
+    } else if (cat === "vm") {
+      rows.push(["Operation", d.operationName]);
+      rows.push(["Resource", (e.subject || "").split("/").pop()]);
+      rows.push(["Status", d.status]);
+      rows.push(["Caller", d.claims && (d.claims.name || d.claims["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn"])]);
+    } else if (cat === "validation") {
+      rows.push(["Validation code", d.validationCode]);
+    }
+    return rows.filter(r => r[1]).map(r => `<div><span>${esc(r[0])}:</span> ${esc(r[1])}</div>`).join("");
+  }
+
+  function render() {
+    const f = filterEl.value;
+    const counts = { blob: 0, vm: 0, validation: 0 };
+    events.forEach(e => { const c = category(e); if (c in counts) counts[c]++; });
+    document.getElementById("s-total").textContent = events.length;
+    document.getElementById("s-blob").textContent = counts.blob;
+    document.getElementById("s-vm").textContent = counts.vm;
+    document.getElementById("s-valid").textContent = counts.validation;
+
+    const shown = events.filter(e => f === "all" || category(e) === f);
+    if (!shown.length) {
+      listEl.innerHTML = '<div class="empty">No events yet. Create an Event Grid subscription pointing to the endpoint above, then upload a blob or stop the VM.</div>';
+      return;
+    }
+    listEl.innerHTML = shown.map(e => {
+      const c = category(e);
+      return `<details class="evt ${c}">
+        <summary>
+          <span class="tag">${labels[c]}</span>
+          <span><div class="type">${esc(e.type)}</div><div class="subject">${esc(e.subject)}</div></span>
+          <span class="time">${esc(new Date(e.receivedAt).toLocaleTimeString())}</span>
+        </summary>
+        <div class="highlight">${highlights(e)}</div>
+        <pre>${esc(JSON.stringify(e.raw, null, 2))}</pre>
+      </details>`;
+    }).join("");
+  }
+
+  filterEl.onchange = render;
+  document.getElementById("clear").onclick = () => fetch("/api/events", { method: "DELETE" });
+
+  function setStatus(on, text) {
+    document.getElementById("dot").classList.toggle("on", on);
+    document.getElementById("status").textContent = text;
+  }
+
+  fetch("/api/events").then(r => r.json()).then(list => { events = list; render(); });
+
+  function connect() {
+    const es = new EventSource("/api/stream");
+    es.onopen = () => setStatus(true, "Live");
+    es.onmessage = msg => {
+      const e = JSON.parse(msg.data);
+      if (e.cleared) events = []; else events.unshift(e);
+      render();
+    };
+    es.onerror = () => { setStatus(false, "Reconnecting…"); };
+  }
+  connect();
+</script>
+</body>
+</html>
