@@ -8,7 +8,7 @@ $WEBAPP_NAME    = "webappblazetest"
 
 $DB_HOST     = "blazeserver.postgres.database.azure.com"
 $DB_NAME     = "studentdb"
-$DB_USER     = "myazureuser@blazeserver"
+$DB_USER     = "myazureuser" #myazureuser@blazeserver
 $DB_PASSWORD = "blaze@123"
 $DB_PORT     = "5432"
 
