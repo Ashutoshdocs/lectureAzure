@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+env:
+  PROJECT_PATH: Chapter10Webapp&ContainerApp/dotnet10-webapp-demo
+  DOTNET_VERSION: '10.0.x'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -15,23 +19,42 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Display repository structure
-      - name: Display Repository Structure
+      # Step 2: Display project structure
+      - name: Display Project Structure
         run: |
           pwd
-          ls -la
           ls -la "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo"
+          ls -la "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/wwwroot"
 
-      # Step 3: Validate deployment files
-      - name: Validate Deployment Files
+      # Step 3: Setup .NET 10
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Step 4: Restore dependencies
+      - name: Restore Dependencies
         run: |
-          test -f "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/index.html"
-          echo "index.html found successfully"
+          dotnet restore "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/Dotnet10WebappDemo.csproj"
 
-      # Step 4: Deploy to Azure Web App
+      # Step 5: Build and publish
+      - name: Build and Publish
+        run: |
+          dotnet publish "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/Dotnet10WebappDemo.csproj" \
+            --configuration Release \
+            --output "${{ github.workspace }}/publish"
+
+      # Step 6: Verify published output
+      - name: Verify Published Output
+        run: |
+          test -f "${{ github.workspace }}/publish/Dotnet10WebappDemo.dll"
+          ls -la "${{ github.workspace }}/publish"
+
+      # Step 7: Deploy to Azure Web App
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: mywebapptest
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: './Chapter10Webapp&ContainerApp/dotnet10-webapp-demo'
+          package: ./publish
+      #
