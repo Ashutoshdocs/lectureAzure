@@ -1,0 +1,146 @@
+name: Deploy Azure WebApp Slot
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: main
+      slot:
+        description: Target slot
+        required: true
+        type: choice
+        default: staging
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+# One deployment per slot at a time; a newer run waits instead of overlapping
+concurrency:
+  group: deploy-${{ inputs.slot }}
+  cancel-in-progress: false
+
+env:
+  APP_DIR: webapp2slots
+  # Prefer a repository *variable* (not masked in logs); falls back to the old secret
+  WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME || secrets.AZURE_WEBAPP_NAME }}
+  # Inputs go through env, never straight into shell scripts (prevents script injection)
+  INPUT_BRANCH: ${{ inputs.branch }}
+  INPUT_SLOT: ${{ inputs.slot }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Shows the live URL on the run page. Add "Required reviewers" to the
+    # "production" environment in repo Settings → Environments for an approval gate.
+    environment:
+      name: ${{ inputs.slot }}
+      url: ${{ steps.deploy.outputs.webapp-url }}
+
+    steps:
+      - name: Checkout ${{ inputs.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Check configuration
+        shell: bash
+        run: |
+          [ -n "$WEBAPP_NAME" ] || { echo "::error::Set repository variable AZURE_WEBAPP_NAME"; exit 1; }
+          [ -f "$APP_DIR/index.html" ] || { echo "::error::$APP_DIR/index.html not found on branch $INPUT_BRANCH"; exit 1; }
+
+          COMMIT_FULL=$(git rev-parse HEAD)
+          echo "COMMIT_FULL=$COMMIT_FULL"           >> "$GITHUB_ENV"
+          echo "COMMIT_SHORT=${COMMIT_FULL:0:7}"    >> "$GITHUB_ENV"
+          echo "DEPLOY_DATE=$(date -u +'%d-%b-%Y %H:%M:%S UTC')" >> "$GITHUB_ENV"
+          echo "DEPLOY_ISO=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"     >> "$GITHUB_ENV"
+
+          echo "Repository : $GITHUB_REPOSITORY"
+          echo "Web App    : $WEBAPP_NAME"
+          echo "Branch     : $INPUT_BRANCH"
+          echo "Slot       : $INPUT_SLOT"
+          echo "Commit     : $COMMIT_FULL"
+
+      - name: Inject deployment information
+        shell: python
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          import html, os, pathlib, re, sys
+
+          values = {
+              "__REPOSITORY__":  os.environ["GITHUB_REPOSITORY"],
+              "__WEBAPP__":      os.environ["WEBAPP_NAME"],
+              "__BRANCH__":      os.environ["INPUT_BRANCH"],
+              "__SLOT__":        os.environ["INPUT_SLOT"],
+              "__COMMIT_FULL__": os.environ["COMMIT_FULL"],
+              "__COMMIT__":      os.environ["COMMIT_SHORT"],
+              "__DATE_ISO__":    os.environ["DEPLOY_ISO"],
+              "__DATE__":        os.environ["DEPLOY_DATE"],
+              "__RUN_NUMBER__":  os.environ["GITHUB_RUN_NUMBER"],
+              "__RUN_URL__":     os.environ["RUN_URL"],
+              "__ACTOR__":       os.environ["GITHUB_ACTOR"],
+          }
+
+          page = pathlib.Path(os.environ["APP_DIR"]) / "index.html"
+          text = page.read_text(encoding="utf-8")
+          # Longest keys first so __COMMIT_FULL__ isn't eaten by __COMMIT__
+          for key in sorted(values, key=len, reverse=True):
+              text = text.replace(key, html.escape(values[key], quote=True))
+          page.write_text(text, encoding="utf-8")
+
+          left = sorted(set(re.findall(r"__[A-Z_]+__", text)))
+          if left:
+              print(f"::error::Placeholders not replaced: {left}")
+              sys.exit(1)
+          print("All placeholders replaced.")
+
+      - name: Deploy to ${{ inputs.slot }}
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          slot-name: ${{ inputs.slot }}
+          publish-profile: ${{ inputs.slot == 'production' && secrets.AZURE_WEBAPP_PUBLISH_PROFILE || secrets.AZURE_WEBAPP_STAGING_PUBLISH_PROFILE }}
+          package: ${{ env.APP_DIR }}
+
+      - name: Verify the new build is live
+        shell: bash
+        env:
+          URL: ${{ steps.deploy.outputs.webapp-url }}
+        run: |
+          echo "Checking $URL for commit $COMMIT_SHORT"
+          for i in $(seq 1 12); do
+            if curl -fsSL -H "Cache-Control: no-cache" "$URL/?v=$GITHUB_RUN_ID" | grep -q "$COMMIT_SHORT"; then
+              echo "✅ Commit $COMMIT_SHORT is live on $URL"
+              exit 0
+            fi
+            echo "Not live yet ($i/12), waiting 10s..."
+            sleep 10
+          done
+          echo "::error::Commit $COMMIT_SHORT not found at $URL after 2 minutes. Check the runtime stack / startup command (see README)."
+          exit 1
+
+      - name: Summary
+        if: always()
+        shell: bash
+        env:
+          URL: ${{ steps.deploy.outputs.webapp-url }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          {
+            echo "## Azure Web App deployment: $OUTCOME"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Web App | \`$WEBAPP_NAME\` |"
+            echo "| Slot | **$INPUT_SLOT** |"
+            echo "| Branch | \`$INPUT_BRANCH\` |"
+            echo "| Commit | \`${COMMIT_SHORT:-n/a}\` |"
+            echo "| URL | ${URL:-n/a} |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,62 @@
+name: Swap Staging to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type SWAP to swap staging into production
+        required: true
+
+permissions:
+  id-token: write   # OIDC login to Azure (no stored password)
+  contents: read
+
+concurrency:
+  group: swap-slots
+  cancel-in-progress: false
+
+env:
+  WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+
+jobs:
+  swap:
+    if: inputs.confirm == 'SWAP'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Show what is about to swap
+        shell: bash
+        run: |
+          for host in "$WEBAPP_NAME-staging" "$WEBAPP_NAME"; do
+            commit=$(curl -fsSL "https://$host.azurewebsites.net/?v=$GITHUB_RUN_ID" | grep -o 'commit/[0-9a-f]\{7\}' | head -1 | cut -d/ -f2 || true)
+            echo "$host → commit ${commit:-unknown}"
+          done
+
+      - name: Swap staging → production
+        shell: bash
+        run: |
+          az webapp deployment slot swap \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEBAPP_NAME" \
+            --slot staging \
+            --target-slot production
+          echo "✅ Swap complete"
+
+      - name: After swap
+        shell: bash
+        run: |
+          for host in "$WEBAPP_NAME" "$WEBAPP_NAME-staging"; do
+            commit=$(curl -fsSL "https://$host.azurewebsites.net/?v=$GITHUB_RUN_ID" | grep -o 'commit/[0-9a-f]\{7\}' | head -1 | cut -d/ -f2 || true)
+            echo "$host → commit ${commit:-unknown}"
+          done
