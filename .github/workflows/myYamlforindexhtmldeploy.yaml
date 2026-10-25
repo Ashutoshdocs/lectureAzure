@@ -3,8 +3,9 @@ name: Deploy HTML to Azure Web App
 on:
   workflow_dispatch:
 
+  push:
     paths:
-      - 'serverlessInfra/webappservice/webappViaGithub/**'
+      - 'lectureAzure/Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/**'
       - '.github/workflows/myYamlforindexhtmldeploy.yaml'
 
 permissions:
@@ -24,12 +25,12 @@ jobs:
         run: |
           pwd
           ls -la
-          ls -la serverlessInfra/webappservice/webappViaGithub
+          ls -la "lectureAzure/Chapter10Webapp&ContainerApp/dotnet10-webapp-demo"
 
       # Step 3: Validate deployment files
-      - name: Validate HTML Files
+      - name: Validate Deployment Files
         run: |
-          test -f serverlessInfra/webappservice/webappViaGithub/index.html
+          test -f "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/index.html"
           echo "index.html found successfully"
 
       # Step 4: Deploy to Azure Web App
@@ -38,4 +39,4 @@ jobs:
         with:
           app-name: mywebapptest
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./serverlessInfra/webappservice/webappViaGithub
+          package: './lectureAzure/Chapter10Webapp&ContainerApp/dotnet10-webapp-demo'
