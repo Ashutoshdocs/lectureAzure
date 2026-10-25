@@ -1,4 +1,4 @@
-name: Deploy HTML to Azure Web App
+name: Chapter10-dotnet10-webapp-demo
 
 on:
   workflow_dispatch:
