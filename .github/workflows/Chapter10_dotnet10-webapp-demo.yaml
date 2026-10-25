@@ -5,7 +5,7 @@ on:
 
   push:
     paths:
-      - 'lectureAzure/Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/**'
+      - 'Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/**'
       - '.github/workflows/myYamlforindexhtmldeploy.yaml'
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
         run: |
           pwd
           ls -la
-          ls -la "lectureAzure/Chapter10Webapp&ContainerApp/dotnet10-webapp-demo"
+          ls -la "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo"
 
       # Step 3: Validate deployment files
       - name: Validate Deployment Files
@@ -39,4 +39,4 @@ jobs:
         with:
           app-name: mywebapptest
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: './lectureAzure/Chapter10Webapp&ContainerApp/dotnet10-webapp-demo'
+          package: './Chapter10Webapp&ContainerApp/dotnet10-webapp-demo'
