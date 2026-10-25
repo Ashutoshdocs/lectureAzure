@@ -1,0 +1,5 @@
+add firewallrule for your laptop
+allow the webapp to talk to the laptop
+port number is 8000
+login in docker desktop to build image
+az postgres flexible-server create -g main  -n blazeserver -l centralindia --admin-user myazureuser  --admin-password blaze@123 --sku-name Standard_B1ms --tier Burstable --version 17
