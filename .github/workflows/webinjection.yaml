@@ -1,4 +1,4 @@
-name: Run commands.ps1
+name: Chapter 10 - Web App VNet Injection
 
 # Manual execution only because the script creates billable Azure resources
 on:
@@ -25,7 +25,7 @@ jobs:
       # Step 3: Verify files and execute PowerShell script
       - name: Execute commands.ps1
         shell: pwsh
-        working-directory: serverlessInfra/webappservice/webappvnetinjection
+        working-directory: 'Chapter10Webapp&ContainerApp/webappvnetinjection'
         run: |
           Write-Host "Current directory:"
           Get-Location
