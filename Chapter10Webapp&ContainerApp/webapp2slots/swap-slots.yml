@@ -1,4 +1,4 @@
-name: Swap Staging to Production
+name: Chapter10Swap Staging to Production
 
 on:
   workflow_dispatch:
@@ -6,9 +6,10 @@ on:
       confirm:
         description: Type SWAP to swap staging into production
         required: true
+        type: string
 
 permissions:
-  id-token: write   # OIDC login to Azure (no stored password)
+  id-token: write
   contents: read
 
 concurrency:
@@ -23,11 +24,33 @@ jobs:
   swap:
     if: inputs.confirm == 'SWAP'
     runs-on: ubuntu-latest
+
     environment:
       name: production
       url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
 
     steps:
+      # Step 1: Validate configuration and confirmation
+      - name: Validate swap request
+        shell: bash
+        run: |
+          set -e
+          [ "$INPUT_CONFIRM" = "SWAP" ] || {
+            echo "::error::Confirmation must be exactly SWAP"
+            exit 1
+          }
+          [ -n "$WEBAPP_NAME" ] || {
+            echo "::error::Set repository variable AZURE_WEBAPP_NAME"
+            exit 1
+          }
+          [ -n "$RESOURCE_GROUP" ] || {
+            echo "::error::Set repository variable AZURE_RESOURCE_GROUP"
+            exit 1
+          }
+        env:
+          INPUT_CONFIRM: ${{ inputs.confirm }}
+
+      # Step 2: Authenticate to Azure using OIDC
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -35,28 +58,70 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Show what is about to swap
+      # Step 3: Verify staging slot exists
+      - name: Verify staging slot
+        shell: bash
+        run: |
+          set -e
+          az webapp deployment slot list \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEBAPP_NAME" \
+            --query "[?name=='${WEBAPP_NAME}/staging'].name" \
+            --output tsv
+
+          az webapp show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEBAPP_NAME" \
+            --output none
+
+      # Step 4: Show current deployments
+      - name: Show deployments before swap
         shell: bash
         run: |
           for host in "$WEBAPP_NAME-staging" "$WEBAPP_NAME"; do
-            commit=$(curl -fsSL "https://$host.azurewebsites.net/?v=$GITHUB_RUN_ID" | grep -o 'commit/[0-9a-f]\{7\}' | head -1 | cut -d/ -f2 || true)
-            echo "$host → commit ${commit:-unknown}"
+            echo "Checking https://$host.azurewebsites.net"
+            curl -fsSL --max-time 20 \
+              "https://$host.azurewebsites.net/" \
+              -o /dev/null \
+              && echo "$host is responding" \
+              || echo "::warning::$host did not respond successfully"
           done
 
-      - name: Swap staging → production
+      # Step 5: Swap staging into production
+      - name: Swap staging to production
         shell: bash
         run: |
+          set -e
           az webapp deployment slot swap \
             --resource-group "$RESOURCE_GROUP" \
             --name "$WEBAPP_NAME" \
             --slot staging \
             --target-slot production
-          echo "✅ Swap complete"
 
-      - name: After swap
+          echo "Staging-to-production swap completed."
+
+      # Step 6: Verify both endpoints after swap
+      - name: Verify after swap
         shell: bash
         run: |
           for host in "$WEBAPP_NAME" "$WEBAPP_NAME-staging"; do
-            commit=$(curl -fsSL "https://$host.azurewebsites.net/?v=$GITHUB_RUN_ID" | grep -o 'commit/[0-9a-f]\{7\}' | head -1 | cut -d/ -f2 || true)
-            echo "$host → commit ${commit:-unknown}"
+            echo "Checking https://$host.azurewebsites.net"
+            curl -fsSL --max-time 30 \
+              "https://$host.azurewebsites.net/" \
+              -o /dev/null \
+              && echo "$host is responding" \
+              || echo "::warning::$host did not respond successfully"
           done
+
+      # Step 7: Deployment summary
+      - name: Swap summary
+        if: always()
+        run: |
+          {
+            echo "## Staging to Production Swap"
+            echo ""
+            echo "- Web App: $WEBAPP_NAME"
+            echo "- Resource Group: $RESOURCE_GROUP"
+            echo "- Operation: Staging → Production"
+            echo "- Workflow status: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
