@@ -1,4 +1,4 @@
-name: Deploy Azure WebApp Slot
+name: Chapter10Deploy Azure WebApp Slot
 
 on:
   workflow_dispatch:
