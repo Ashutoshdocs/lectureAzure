@@ -1,2 +1,0 @@
-docker build -t webappdeployment:v1 .
-docker run -d --name webappdeployment -p 8080:80 webappdeployment:v1

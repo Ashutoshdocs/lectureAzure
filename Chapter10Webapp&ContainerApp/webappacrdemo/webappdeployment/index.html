@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebApp Deployment Demo</title>
+<style>
+:root{
+  --bg1:#0f172a; --bg2:#1e3a8a;
+  --card:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --brand:#2563eb; --azure:#0078d4; --ok:#16a34a; --okbg:#dcfce7;
+  --tile:#f1f5f9; --line:#e2e8f0;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh;
+  font-family:"Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;
+  color:var(--ink);
+  background:radial-gradient(circle at 20% 10%,#2563eb55,transparent 40%),
+             radial-gradient(circle at 80% 90%,#06b6d455,transparent 40%),
+             linear-gradient(135deg,var(--bg1),var(--bg2));
+  display:flex; justify-content:center; align-items:center;
+  padding:32px 16px;
+}
+.card{
+  width:100%; max-width:980px; background:var(--card);
+  border-radius:24px; padding:44px; box-shadow:0 30px 60px rgba(0,0,0,.35);
+}
+header{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
+h1{margin:0; font-size:40px; letter-spacing:-.5px}
+h1 span{color:var(--brand)}
+.sub{margin:6px 0 0; color:var(--muted); font-size:17px}
+.badges{display:flex; gap:10px; flex-wrap:wrap}
+.badge{padding:8px 16px; border-radius:999px; font-weight:600; font-size:14px; color:#fff}
+.badge.version{background:var(--ok)}
+.badge.env{background:var(--azure)}
+
+.status{
+  margin:28px 0; padding:16px 20px; border-radius:14px;
+  background:var(--okbg); color:#166534; font-weight:600; font-size:18px;
+  display:flex; align-items:center; gap:12px;
+}
+.dot{width:12px; height:12px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 0 #16a34a88; animation:pulse 1.8s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 12px #16a34a00}100%{box-shadow:0 0 0 0 #16a34a00}}
+
+h3.section{margin:32px 0 14px; font-size:14px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted)}
+
+.pipeline{display:flex; align-items:stretch; gap:8px; flex-wrap:wrap}
+.step{
+  flex:1 1 140px; background:var(--tile); border:1px solid var(--line);
+  border-radius:14px; padding:16px; text-align:center;
+}
+.step .ico{font-size:28px}
+.step b{display:block; margin-top:6px}
+.step small{color:var(--muted)}
+.arrow{align-self:center; color:var(--muted); font-size:22px}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px}
+.box{background:var(--tile); border-radius:14px; padding:18px; border:1px solid var(--line)}
+.box h4{margin:0 0 6px; color:var(--brand)}
+.box p{margin:0; color:var(--muted); font-size:14px; line-height:1.5}
+
+.info{width:100%; border-collapse:collapse; font-size:14px}
+.info td{padding:10px 12px; border-bottom:1px solid var(--line)}
+.info td:first-child{color:var(--muted); width:40%}
+.info code{background:var(--tile); padding:2px 8px; border-radius:6px}
+
+footer{margin-top:32px; text-align:center; color:var(--muted); font-size:14px}
+
+@media (max-width:640px){
+  .card{padding:24px} h1{font-size:30px} .arrow{display:none}
+}
+</style>
+</head>
+<body>
+<main class="card">
+
+  <header>
+    <div>
+      <h1>🚀 WebApp <span>Deployment</span></h1>
+      <p class="sub">Docker image built locally, pushed to Azure Container Registry</p>
+    </div>
+    <div class="badges">
+      <span class="badge version">Version 1.0</span>
+      <span class="badge env">Azure ACR</span>
+    </div>
+  </header>
+
+  <div class="status"><span class="dot"></span> WebApp successfully deployed and running</div>
+
+  <h3 class="section">Deployment pipeline</h3>
+  <div class="pipeline">
+    <div class="step"><div class="ico">📝</div><b>Code</b><small>HTML + Dockerfile</small></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="ico">🐳</div><b>Build</b><small>docker build</small></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="ico">🏷️</div><b>Tag</b><small>&lt;acr&gt;.azurecr.io</small></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="ico">☁️</div><b>Push</b><small>Azure ACR</small></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="ico">✅</div><b>Run</b><small>NGINX container</small></div>
+  </div>
+
+  <h3 class="section">What this demo shows</h3>
+  <div class="grid">
+    <div class="box"><h4>🐳 Docker Image</h4><p>The app is packaged with NGINX into a small Alpine-based image.</p></div>
+    <div class="box"><h4>☁️ Azure Container Registry</h4><p>The image is stored privately in ACR, ready for any Azure service to pull.</p></div>
+    <div class="box"><h4>🏷️ Versioned Tags</h4><p>Each release gets its own tag (v1, v2…) so rollbacks are one command.</p></div>
+    <div class="box"><h4>🔄 Easy Updates</h4><p>Change the page, build v2, push, redeploy. Nothing else changes.</p></div>
+  </div>
+
+  <h3 class="section">Runtime info</h3>
+  <table class="info">
+    <tr><td>Server</td><td><code>nginx:alpine</code></td></tr>
+    <tr><td>Container port</td><td><code>80</code></td></tr>
+    <tr><td>Served at</td><td><code id="host">—</code></td></tr>
+    <tr><td>Page loaded</td><td><code id="time">—</code></td></tr>
+  </table>
+
+  <footer>
+    <b>Demo Application</b> · Docker · NGINX · Azure Container Registry · HTML5 · CSS3
+  </footer>
+</main>
+
+<script>
+  document.getElementById('host').textContent = location.host || 'local file';
+  document.getElementById('time').textContent = new Date().toLocaleString();
+</script>
+</body>
+</html>
