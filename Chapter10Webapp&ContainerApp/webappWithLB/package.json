@@ -1,6 +1,11 @@
 {
-  "name": "scaledemo",
+  "name": "webappwithlb",
   "version": "1.0.0",
+  "description": "Azure App Service scale-out + load balancer demo",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "express": "^4.19.2"
   },
