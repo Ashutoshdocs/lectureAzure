@@ -11,7 +11,7 @@ Code  →  docker build  →  docker tag  →  docker push  →  ACR  →  run a
 ## 📁 Project structure
 
 ```
-webappdeployment/
+webappacrdemo/
 ├── index.html     # Demo page
 ├── Dockerfile     # nginx:alpine image serving index.html
 └── README.md      # This guide
