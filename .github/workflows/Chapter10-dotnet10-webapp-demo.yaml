@@ -6,7 +6,7 @@ on:
   push:
     paths:
       - 'Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/**'
-      - '.github/workflows/myYamlforindexhtmldeploy.yaml'
+      - '.github/workflows/Chapter10-dotnet10-webapp-demo.yaml'
 
 permissions:
   contents: read
