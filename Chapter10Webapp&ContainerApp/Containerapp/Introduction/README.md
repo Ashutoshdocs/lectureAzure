@@ -120,7 +120,7 @@ az account set --subscription "<your-subscription-name-or-id>"
 ## 5. Run locally (optional, 1 minute)
 
 ```bash
-cd aca-demo/app
+cd Introduction/app
 node server.js
 # open http://localhost:8080
 ```
