@@ -2,8 +2,6 @@
 
 A small, zero-dependency Node.js app with a **live web UI** that makes Azure Container Apps (ACA) features visible: replicas appearing and disappearing, traffic split between versions, private service-to-service calls, and run-to-completion jobs. It also explains **what Container Apps can do that an App Service Web App cannot.**
 
-> 👉 **Prefer clicking in the Azure Portal?** Follow [`PORTAL-STEPS.md`](PORTAL-STEPS.md). It covers the same demo with ACR, done through the UI step by step. This README covers the CLI path.
-
 Total time: ~30 minutes. Cost: a few rupees if you run `cleanup.sh` at the end (ACA has a monthly free grant, and the app scales to zero when idle).
 
 ---
@@ -76,7 +74,7 @@ Where the **Web App is better**: deploying plain code without building a contain
 ## 3. Project structure
 
 ```
-aca-demo/
+deepdive/
 ├── README.md            ← this file
 ├── deploy.sh            ← creates everything in Azure (one command)
 ├── cleanup.sh           ← deletes everything
