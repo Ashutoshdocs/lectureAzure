@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Container Apps Demo</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #111827; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2563eb; --ok: #059669; --warn: #d97706;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b0f17; --card: #131a26; --ink: #e5e7eb; --muted: #9ca3af; --line: #233042; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 28px 20px 16px; max-width: 1100px; margin: 0 auto; }
+  header h1 { margin: 0 0 4px; font-size: 26px; }
+  header p { margin: 0; color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { margin: 0 0 4px; font-size: 17px; }
+  .card .why { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+  dt { color: var(--muted); } dd { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 8px 14px; background: var(--accent); color: #fff; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  input[type=number] { width: 80px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; }
+  .bars { display: grid; gap: 6px; }
+  .bar { display: grid; grid-template-columns: 170px 1fr 48px; gap: 8px; align-items: center; font-size: 13px; }
+  .bar .label { font-family: ui-monospace, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .track { height: 14px; background: var(--line); border-radius: 7px; overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 7px; transition: width .3s; }
+  .bar .n { text-align: right; font-variant-numeric: tabular-nums; }
+  pre { margin: 0; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); overflow: auto; font-size: 12px; max-height: 260px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td.yes { color: var(--ok); font-weight: 600; } td.no { color: var(--warn); font-weight: 600; }
+  .stat { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); font-size: 13px; }
+  @media (max-width: 520px) { .bar { grid-template-columns: 110px 1fr 40px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Azure Container Apps — live demo <span id="ver" class="badge">v?</span></h1>
+  <p id="msg">Loading…</p>
+</header>
+
+<main>
+  <!-- 1. Who am I -->
+  <section class="card">
+    <h2>1 · Who answered this request?</h2>
+    <p class="why">Container Apps injects the app, revision and replica name into every container. A Web App has no "revision" concept.</p>
+    <dl id="info"></dl>
+  </section>
+
+  <!-- 2. Scale to zero / autoscale -->
+  <section class="card">
+    <h2>2 · Event-driven autoscale (KEDA)</h2>
+    <p class="why">Fire concurrent requests that each hold for a few seconds. The HTTP scale rule adds replicas, then removes them — down to <b>zero</b> when idle.</p>
+    <div class="row">
+      <label>Requests <input id="n" type="number" value="60" min="1" max="500"></label>
+      <label>Hold (ms) <input id="ms" type="number" value="8000" min="500" max="30000" step="500"></label>
+      <button id="burst">Send burst</button>
+    </div>
+    <div class="row"><span class="stat" id="replicaCount">0</span><span class="muted">distinct replicas answered the burst</span></div>
+    <div class="bars" id="burstBars"></div>
+  </section>
+
+  <!-- 3. Revisions + traffic split -->
+  <section class="card">
+    <h2>3 · Revisions &amp; traffic splitting</h2>
+    <p class="why">Deploy v2 as a new revision and send e.g. 80/20 traffic. This polls <code>/api/info</code> and counts which revision answered.</p>
+    <div class="row">
+      <button id="poll">Sample 50 requests</button>
+      <button id="reset" class="secondary">Reset</button>
+    </div>
+    <div class="bars" id="revBars"></div>
+  </section>
+
+  <!-- 4. Microservices -->
+  <section class="card">
+    <h2>4 · Service-to-service call</h2>
+    <p class="why">This frontend calls a <b>backend</b> container app that has <i>internal-only</i> ingress — reachable by name inside the environment, invisible to the internet.</p>
+    <div class="row"><button id="down">Call backend</button></div>
+    <pre id="downOut">Not called yet.</pre>
+  </section>
+
+  <!-- 5. Comparison -->
+  <section class="card wide">
+    <h2>5 · What Container Apps can do that App Service (Web App) cannot</h2>
+    <p class="why">Both run containers. The difference is the platform model: Web Apps are "always-on web servers on a plan"; Container Apps are "serverless Kubernetes for microservices".</p>
+    <div style="overflow:auto">
+    <table>
+      <thead><tr><th>Capability</th><th>Container Apps</th><th>Web App</th><th>Shown in this demo</th></tr></thead>
+      <tbody>
+        <tr><td>Scale to <b>zero</b> replicas (pay nothing when idle)</td><td class="yes">Yes</td><td class="no">No — min 1 instance on the plan</td><td>Card 2 + Step 6</td></tr>
+        <tr><td>Scale on <b>events</b> (queue length, Kafka lag, cron, CPU, any KEDA scaler)</td><td class="yes">Yes</td><td class="no">CPU/memory/schedule rules only</td><td>Card 2 + Step 6</td></tr>
+        <tr><td>Immutable <b>revisions</b> with weighted traffic split across many versions</td><td class="yes">Yes</td><td class="no">Slots (fixed number, swap model)</td><td>Card 3 + Step 7</td></tr>
+        <tr><td><b>Internal-only</b> services with built-in service discovery by app name</td><td class="yes">Yes</td><td class="no">Needs VNet + private endpoints per app</td><td>Card 4 + Step 8</td></tr>
+        <tr><td><b>Jobs</b> — run-to-completion containers (manual, cron, event-triggered)</td><td class="yes">Yes</td><td class="no">WebJobs only (Windows/limited on Linux)</td><td>Step 9</td></tr>
+        <tr><td>Non-HTTP workloads: TCP ingress, background workers with no ingress</td><td class="yes">Yes</td><td class="no">HTTP(S) only</td><td>Step 9</td></tr>
+        <tr><td><b>Sidecars</b> and init containers in one app</td><td class="yes">Yes</td><td class="no">Limited (sidecar preview on Linux)</td><td>README</td></tr>
+        <tr><td>Built-in <b>Dapr</b> (pub/sub, state, service invocation)</td><td class="yes">Yes</td><td class="no">No</td><td>README</td></tr>
+        <tr><td>Serverless <b>GPU</b> workloads</td><td class="yes">Yes</td><td class="no">No</td><td>README</td></tr>
+        <tr><td>Code-only deploy (no container) for .NET/Node/Python/Java/PHP</td><td class="no">Needs an image (az up can build one)</td><td class="yes">Yes</td><td>— Web App wins here</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const palette = ["#2563eb","#059669","#d97706","#db2777","#7c3aed","#0891b2","#65a30d","#dc2626"];
+const colorFor = (() => { const m = {}; let i = 0; return (k) => m[k] || (m[k] = palette[i++ % palette.length]); })();
+
+function renderBars(el, counts) {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+  el.innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+    <div class="bar"><span class="label" title="${k}">${k}</span>
+      <span class="track"><span class="fill" style="width:${(v / total * 100).toFixed(1)}%;background:${colorFor(k)}"></span></span>
+      <span class="n">${Math.round(v / total * 100)}%</span></div>`).join("");
+}
+
+async function loadInfo() {
+  const d = await (await fetch("/api/info", { cache: "no-store" })).json();
+  $("ver").textContent = d.version; $("ver").style.background = d.color;
+  $("msg").textContent = d.message + (d.runningInAca ? "" : " (running locally — deploy to Azure to see real replicas)");
+  const rows = { App: d.app, Revision: d.revision, Replica: d.replica, "ACR image": d.image, Role: d.role, "Started": d.startedAt, "Uptime (s)": d.uptimeSec, "Requests served": d.served };
+  $("info").innerHTML = Object.entries(rows).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+}
+
+$("burst").onclick = async () => {
+  const n = +$("n").value, ms = +$("ms").value, btn = $("burst");
+  btn.disabled = true; btn.textContent = "Running…";
+  const counts = {};
+  await Promise.all(Array.from({ length: n }, () =>
+    fetch(`/api/work?ms=${ms}&r=${Math.random()}`, { cache: "no-store" }).then(r => r.json())
+      .then(d => { counts[d.replica] = (counts[d.replica] || 0) + 1; renderBars($("burstBars"), counts); $("replicaCount").textContent = Object.keys(counts).length; })
+      .catch(() => {})));
+  btn.disabled = false; btn.textContent = "Send burst";
+  loadInfo();
+};
+
+let revCounts = {};
+$("poll").onclick = async () => {
+  const btn = $("poll"); btn.disabled = true;
+  for (let i = 0; i < 50; i++) {
+    try {
+      const d = await (await fetch(`/api/info?r=${Math.random()}`, { cache: "no-store" })).json();
+      const key = `${d.version} · ${d.revision.split("--").pop()}`;
+      revCounts[key] = (revCounts[key] || 0) + 1; renderBars($("revBars"), revCounts);
+    } catch {}
+  }
+  btn.disabled = false;
+};
+$("reset").onclick = () => { revCounts = {}; $("revBars").innerHTML = ""; };
+
+$("down").onclick = async () => {
+  $("downOut").textContent = "Calling…";
+  try {
+    const d = await (await fetch("/api/downstream", { cache: "no-store" })).json();
+    $("downOut").textContent = JSON.stringify(d.error ? d : { calledUrl: d.calledUrl, latencyMs: d.latencyMs, backendRevision: d.backend.revision, backendReplica: d.backend.replica, backendRole: d.backend.role }, null, 2);
+  } catch (e) { $("downOut").textContent = String(e); }
+};
+
+loadInfo();
+</script>
+</body>
+</html>
