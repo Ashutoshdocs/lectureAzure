@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  PROJECT_PATH: Chapter10Webapp&ContainerApp/dotnet10-webapp-demo
+  PROJECT_PATH: Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/webapps
   DOTNET_VERSION: '10.0.x'
 
 jobs:
@@ -23,8 +23,8 @@ jobs:
       - name: Display Project Structure
         run: |
           pwd
-          ls -la "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo"
-          ls -la "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/wwwroot"
+          ls -la "Chapter10Webapp&ContainerApp/webapps/dotnet10-webapp-demo"
+          ls -la "Chapter10Webapp&ContainerApp/webapps/dotnet10-webapp-demo/wwwroot"
 
       # Step 3: Setup .NET 10
       - name: Setup .NET
@@ -35,12 +35,12 @@ jobs:
       # Step 4: Restore dependencies
       - name: Restore Dependencies
         run: |
-          dotnet restore "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/Dotnet10WebappDemo.csproj"
+          dotnet restore "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/webapps/Dotnet10WebappDemo.csproj"
 
       # Step 5: Build and publish
       - name: Build and Publish
         run: |
-          dotnet publish "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/Dotnet10WebappDemo.csproj" \
+          dotnet publish "Chapter10Webapp&ContainerApp/dotnet10-webapp-demo/webapps/Dotnet10WebappDemo.csproj" \
             --configuration Release \
             --output "${{ github.workspace }}/publish"
 
