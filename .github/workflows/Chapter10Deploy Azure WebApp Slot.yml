@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_DIR: Chapter10Webapp&ContainerApp/webapp2slots
+  APP_DIR: Chapter10Webapp&ContainerApp/webapps/webapp2slots
   WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME || secrets.AZURE_WEBAPP_NAME }}
   INPUT_BRANCH: ${{ inputs.branch }}
   INPUT_SLOT: ${{ inputs.slot }}
