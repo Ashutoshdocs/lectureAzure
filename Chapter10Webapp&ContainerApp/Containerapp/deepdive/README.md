@@ -132,7 +132,7 @@ Locally you'll see one replica named after your machine and a note saying you're
 ### 6.1 Deploy
 
 ```bash
-cd aca-demo
+cd deepdive
 chmod +x deploy.sh cleanup.sh
 ./deploy.sh
 ```
