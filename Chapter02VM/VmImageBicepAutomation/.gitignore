@@ -1,8 +1,0 @@
-# Compiled Bicep output
-*.json
-!bicepconfig.json
-
-# Local secrets / keys
-*.pem
-id_rsa*
-.env
