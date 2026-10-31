@@ -1,0 +1,53 @@
+{
+  "properties": {
+    "roleName": "VM Restricted Operator",
+    "description": "Can view, start and restart VMs, create/attach data disks and resize VMs. Cannot stop/deallocate or delete VMs, delete disks, or use Run Command. Detach and non-B-series resize are blocked by Azure Policy.",
+    "assignableScopes": [
+      "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/rg-customrole-demo"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "Microsoft.Resources/subscriptions/resourceGroups/read",
+          "Microsoft.Resources/deployments/read",
+          "Microsoft.Resources/deployments/write",
+          "Microsoft.Resources/deployments/validate/action",
+          "Microsoft.Resources/deployments/operationstatuses/read",
+
+          "Microsoft.Compute/virtualMachines/read",
+          "Microsoft.Compute/virtualMachines/instanceView/read",
+          "Microsoft.Compute/virtualMachines/start/action",
+          "Microsoft.Compute/virtualMachines/restart/action",
+          "Microsoft.Compute/virtualMachines/write",
+          "Microsoft.Compute/virtualMachines/vmSizes/read",
+          "Microsoft.Compute/virtualMachines/extensions/read",
+          "Microsoft.Compute/locations/vmSizes/read",
+          "Microsoft.Compute/skus/read",
+
+          "Microsoft.Compute/disks/read",
+          "Microsoft.Compute/disks/write",
+
+          "Microsoft.Network/networkInterfaces/read",
+          "Microsoft.Network/networkInterfaces/join/action",
+          "Microsoft.Network/publicIPAddresses/read",
+          "Microsoft.Network/virtualNetworks/read",
+          "Microsoft.Network/virtualNetworks/subnets/read",
+          "Microsoft.Network/networkSecurityGroups/read",
+
+          "Microsoft.Insights/metrics/read",
+          "Microsoft.Insights/metricDefinitions/read",
+          "Microsoft.Insights/eventtypes/values/read"
+        ],
+        "notActions": [
+          "Microsoft.Compute/virtualMachines/powerOff/action",
+          "Microsoft.Compute/virtualMachines/deallocate/action",
+          "Microsoft.Compute/virtualMachines/delete",
+          "Microsoft.Compute/virtualMachines/runCommand/action",
+          "Microsoft.Compute/disks/delete"
+        ],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ]
+  }
+}

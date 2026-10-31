@@ -1,0 +1,53 @@
+{
+  "properties": {
+    "displayName": "Demo - Block detaching protected data disks",
+    "description": "Denies any update to the named VM that would remove one of the listed data disks from it.",
+    "mode": "All",
+    "metadata": {
+      "category": "Compute"
+    },
+    "parameters": {
+      "vmName": {
+        "type": "String",
+        "metadata": {
+          "displayName": "VM name",
+          "description": "Name of the virtual machine whose data disks are protected."
+        }
+      },
+      "protectedDiskNames": {
+        "type": "Array",
+        "metadata": {
+          "displayName": "Protected data disk names",
+          "description": "Managed data disk names that must stay attached to the VM."
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Compute/virtualMachines"
+          },
+          {
+            "field": "name",
+            "equals": "[parameters('vmName')]"
+          },
+          {
+            "count": {
+              "field": "Microsoft.Compute/virtualMachines/storageProfile.dataDisks[*]",
+              "where": {
+                "field": "Microsoft.Compute/virtualMachines/storageProfile.dataDisks[*].name",
+                "in": "[parameters('protectedDiskNames')]"
+              }
+            },
+            "less": "[length(parameters('protectedDiskNames'))]"
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
+  }
+}
