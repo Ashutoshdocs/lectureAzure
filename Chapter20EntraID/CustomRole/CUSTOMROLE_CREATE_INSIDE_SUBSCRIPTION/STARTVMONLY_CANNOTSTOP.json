@@ -1,6 +1,6 @@
 {
   "properties": {
-    "roleName": "Start VM Only Role",
+    "roleName": "na na na bu bu cannt stop vm but can start",
     "description": "Can start VM but cannot stop it",
     "assignableScopes": [
       "/subscriptions/6f787beb-8095-4923-ae3e-deba86057045"
