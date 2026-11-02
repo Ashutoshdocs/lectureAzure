@@ -1,5 +1,5 @@
 /* =====================================================================
-   dataset.sql  —  SalesDemo dataset, Entra ID permissions, RLS, analysis views
+   dataset.sql  —  SalesDemo dataset, Entra ID permissions, RLS mapping, analysis views
    Run against database [SalesDemo] as the Entra ID admin of the SQL server
    (from the gateway VM via Bastion, using SSMS / Azure Data Studio /
     sqlcmd -G  — public access is disabled, so it must run inside the VNet).
@@ -29,7 +29,7 @@ CREATE TABLE sales.DimRegion (
     RegionKey   INT          NOT NULL PRIMARY KEY,
     RegionName  NVARCHAR(50) NOT NULL,
     Country     NVARCHAR(50) NOT NULL,
-    ManagerUPN  NVARCHAR(256) NULL          -- Entra ID UPN used by row-level security
+    ManagerUPN  NVARCHAR(256) NULL          -- app user identity used by Power BI RLS in the embed token
 );
 
 CREATE TABLE sales.DimProduct (
@@ -73,7 +73,8 @@ GO
 
 /* ---------------------------------------------------------------------
    2. SAMPLE DATA  (~50,000 sales rows, Jan 2024 – Dec 2025)
-   Replace the UPNs below with real users in your tenant to test RLS.
+   ManagerUPN values are the identities the web app sends in the embed token.
+   They do NOT need to be Entra users (app-owns-data: customers need no Power BI licence).
    --------------------------------------------------------------------- */
 INSERT sales.DimRegion VALUES
  (1, N'North', N'India',          N'north.manager@contoso.onmicrosoft.com'),
@@ -186,45 +187,37 @@ ORDER BY Revenue DESC;
 GO
 
 /* ---------------------------------------------------------------------
-   4. ENTRA ID PERMISSIONS  (contained database users — no SQL logins)
-   Create these Entra groups first (see README §3):
-     - sg-pbi-sql-readers   : report authors / viewers using SSO
-     - sp-powerbi-sqlreader : (optional) service principal / app registration
+   4. SECURITY MAPPING VIEW (drives Power BI RLS for embedded users)
+   The web app passes the signed-in app user as the embed token's
+   "effective identity"; the Power BI role filters vRegionSecurity by
+   USERPRINCIPALNAME(), which propagates to vSales through RegionName.
    --------------------------------------------------------------------- */
+CREATE OR ALTER VIEW rpt.vRegionSecurity AS
+SELECT RegionName, Country, ManagerUPN   -- all regions, so every sales row has a match
+FROM sales.DimRegion;
+GO
+
+/* ---------------------------------------------------------------------
+   5. ENTRA ID PERMISSIONS  (contained database users — no SQL logins)
+     - app-sql-reader     : service principal stored in the gateway connection.
+                            This is the ONLY identity SQL sees from Power BI Embedded.
+     - sg-pbi-sql-readers : report authors using Power BI Desktop on the VM.
+   Names must match the Entra display names created by infra/00_identity.sh.
+   --------------------------------------------------------------------- */
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'app-sql-reader')
+    CREATE USER [app-sql-reader] FROM EXTERNAL PROVIDER;
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'sg-pbi-sql-readers')
     CREATE USER [sg-pbi-sql-readers] FROM EXTERNAL PROVIDER;
 GO
 -- Least privilege: read only the reporting schema
+GRANT SELECT ON SCHEMA::rpt TO [app-sql-reader];
 GRANT SELECT ON SCHEMA::rpt TO [sg-pbi-sql-readers];
 GO
 
--- Optional: service principal used by a Power BI cloud/gateway connection
--- IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'sp-powerbi-sqlreader')
---     CREATE USER [sp-powerbi-sqlreader] FROM EXTERNAL PROVIDER;
--- GRANT SELECT ON SCHEMA::rpt TO [sp-powerbi-sqlreader];
-GO
-
-/* ---------------------------------------------------------------------
-   5. ROW-LEVEL SECURITY (works end-to-end with DirectQuery + Entra SSO,
-      because SQL sees the real signed-in user's UPN)
-   --------------------------------------------------------------------- */
-DROP SECURITY POLICY IF EXISTS sec.RegionPolicy;
-GO
-CREATE OR ALTER FUNCTION sec.fn_RegionFilter(@RegionKey INT)
-RETURNS TABLE WITH SCHEMABINDING AS
-RETURN
-    SELECT 1 AS allowed
-    FROM sales.DimRegion r
-    WHERE r.RegionKey = @RegionKey
-      AND (
-            r.ManagerUPN = SUSER_SNAME()              -- Entra user (UPN) sees own region
-         OR IS_ROLEMEMBER('db_owner') = 1             -- admins / Entra admin see all
-      );
-GO
--- Policy is created DISABLED so the demo works immediately; enable in README §9
-CREATE SECURITY POLICY sec.RegionPolicy
-    ADD FILTER PREDICATE sec.fn_RegionFilter(RegionKey) ON sales.FactSales
-    WITH (STATE = OFF);
+-- Verify
+SELECT name, type_desc, authentication_type_desc
+FROM sys.database_principals
+WHERE name IN ('app-sql-reader','sg-pbi-sql-readers');
 GO
 
 /* ---------------------------------------------------------------------
@@ -259,6 +252,7 @@ SELECT CASE WHEN [Quarter] = 4 THEN 'Q4' ELSE 'Q1-Q3 (avg/qtr)' END AS Period,
 FROM rpt.vSales WHERE [Year] = 2025
 GROUP BY CASE WHEN [Quarter] = 4 THEN 'Q4' ELSE 'Q1-Q3 (avg/qtr)' END;
 
--- 6f. Who am I? (use this from Power BI DirectQuery to prove SSO identity)
-SELECT USER_NAME() AS DbUser, SUSER_SNAME() AS LoginName, ORIGINAL_LOGIN() AS OriginalLogin;
+-- 6f. Who is connecting? Run while a refresh is in progress: expect app-sql-reader
+SELECT s.login_name, s.program_name, s.host_name, s.login_time
+FROM sys.dm_exec_sessions s WHERE s.is_user_process = 1;
 GO
