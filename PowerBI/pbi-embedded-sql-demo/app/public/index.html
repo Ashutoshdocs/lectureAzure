@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contoso Sales Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js"></script>
+  <style>
+    :root { --bg:#f5f6f8; --panel:#fff; --ink:#1b1f24; --muted:#5f6b7a; --accent:#0f6cbd; --line:#dfe3e8; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: "Segoe UI", system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px;
+             padding:12px 20px; background:var(--panel); border-bottom:1px solid var(--line); }
+    header h1 { font-size:18px; margin:0; }
+    .who { font-size:13px; color:var(--muted); }
+    .who b { color:var(--ink); }
+    main { padding:20px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:24px; max-width:460px; margin:40px auto; }
+    .card h2 { margin-top:0; font-size:18px; }
+    .card p { color:var(--muted); font-size:14px; }
+    select, button { font:inherit; padding:8px 12px; border-radius:6px; border:1px solid var(--line); }
+    select { width:100%; margin:8px 0 16px; }
+    button { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; }
+    button.secondary { background:transparent; color:var(--accent); }
+    #report { height: calc(100vh - 110px); min-height:480px; background:var(--panel);
+              border:1px solid var(--line); border-radius:8px; }
+    .hidden { display:none !important; }
+    .err { color:#b42318; font-size:14px; white-space:pre-wrap; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#e8f1fb; color:var(--accent); font-size:12px; margin-left:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Contoso Sales Portal</h1>
+    <div id="userbar" class="who hidden">
+      Signed in as <b id="uname"></b><span id="urole" class="pill"></span>
+      <button class="secondary" id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Simulated app login: in production, use your own identity provider -->
+    <section id="login" class="card">
+      <h2>Sign in to the portal</h2>
+      <p>This is <b>your application's</b> login. Users never sign in to Power BI —
+         the server embeds the report with a token that carries their identity for row-level security.</p>
+      <label for="user">Demo user</label>
+      <select id="user"></select>
+      <button id="signin">Sign in</button>
+      <p id="loginErr" class="err"></p>
+    </section>
+
+    <div id="report" class="hidden"></div>
+    <p id="embedErr" class="err"></p>
+  </main>
+
+<script>
+const pbi = window["powerbi-client"];
+const models = pbi.models;
+const $ = (id) => document.getElementById(id);
+let report, refreshTimer;
+
+async function loadUsers() {
+  const users = await (await fetch("/api/users")).json();
+  $("user").innerHTML = users.map(u => `<option value="${u.id}">${u.display}</option>`).join("");
+}
+
+async function getConfig() {
+  const r = await fetch("/api/embed-config");
+  if (r.status === 401) return null;
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error);
+  return j;
+}
+
+// Renew the embed token ~5 minutes before it expires
+function scheduleRefresh(expiration) {
+  clearTimeout(refreshTimer);
+  const ms = new Date(expiration) - Date.now() - 5 * 60 * 1000;
+  refreshTimer = setTimeout(async () => {
+    const cfg = await getConfig();
+    if (cfg && report) { await report.setAccessToken(cfg.accessToken); scheduleRefresh(cfg.expiration); }
+  }, Math.max(ms, 30 * 1000));
+}
+
+async function embed() {
+  $("embedErr").textContent = "";
+  let cfg;
+  try { cfg = await getConfig(); } catch (e) { $("embedErr").textContent = e.message; return; }
+  if (!cfg) return showLogin();
+
+  $("login").classList.add("hidden");
+  $("userbar").classList.remove("hidden");
+  $("report").classList.remove("hidden");
+  $("uname").textContent = cfg.user.display;
+  $("urole").textContent = cfg.user.role;
+
+  const container = $("report");
+  powerbi.reset(container);
+  report = powerbi.embed(container, {
+    type: "report",
+    id: cfg.reportId,
+    embedUrl: cfg.embedUrl,
+    accessToken: cfg.accessToken,
+    tokenType: models.TokenType.Embed,          // embed token (app owns data)
+    permissions: models.Permissions.Read,
+    settings: {
+      panes: { filters: { visible: false }, pageNavigation: { visible: true } },
+      background: models.BackgroundType.Transparent,
+    },
+  });
+  report.on("error", (e) => { $("embedErr").textContent = JSON.stringify(e.detail, null, 2); });
+  scheduleRefresh(cfg.expiration);
+}
+
+function showLogin() {
+  $("login").classList.remove("hidden");
+  $("userbar").classList.add("hidden");
+  $("report").classList.add("hidden");
+}
+
+$("signin").onclick = async () => {
+  $("loginErr").textContent = "";
+  const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ userId: $("user").value }) });
+  if (!r.ok) { $("loginErr").textContent = (await r.json()).error; return; }
+  embed();
+};
+$("logout").onclick = async () => {
+  await fetch("/api/logout", { method: "POST" });
+  clearTimeout(refreshTimer);
+  powerbi.reset($("report"));
+  showLogin();
+};
+
+loadUsers().then(embed);
+</script>
+</body>
+</html>
