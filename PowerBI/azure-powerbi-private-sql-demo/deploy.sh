@@ -6,7 +6,7 @@ LOCATION="centralindia"
 RG="rg-pbi-private-demo"
 SQL_SERVER="sqlpbi$(openssl rand -hex 4)"
 SQL_ADMIN="labadmin"
-SQL_PASSWORD="${SQL_PASSWORD:-ChangeThis-Strong-Passw0rd!}"
+SQL_PASSWORD="${blazex@123}"
 DB="SalesDemo"
 # --------------------------------------------
 
