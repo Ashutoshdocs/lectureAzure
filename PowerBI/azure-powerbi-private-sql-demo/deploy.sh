@@ -1,6 +1,7 @@
 
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export MSYS_NO_PATHCONV=1
 
 # ==========================================================
 # Azure Power BI Embedded + Azure SQL Private Endpoint
