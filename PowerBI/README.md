@@ -109,7 +109,8 @@ sequenceDiagram
     G->>S: TDS 1433 login with access token
     S->>E: Validate token, check group membership
     S-->>G: Rows (filtered by RLS for the viewer)
-    G-->>R-->>P: Results
+    G-->>R: Results
+    R-->>P: Results
     P-->>V: Rendered visuals
 ```
 
