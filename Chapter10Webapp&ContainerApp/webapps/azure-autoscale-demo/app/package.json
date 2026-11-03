@@ -1,0 +1,8 @@
+{
+  "name": "azure-autoscale-demo",
+  "version": "1.0.0",
+  "description": "Each App Service instance serves a differently colored page; /burn generates safe, time-boxed CPU load to trigger autoscale.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
