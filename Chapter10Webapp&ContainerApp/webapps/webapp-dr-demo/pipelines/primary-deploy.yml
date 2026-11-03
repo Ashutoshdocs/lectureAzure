@@ -1,0 +1,126 @@
+# =====================================================================
+# Pipeline 1 — PRIMARY
+# Runs automatically on every push to main that changes app/ (or run it manually).
+# Stages: Build (zip code) -> Provision (create web app if missing) -> Deploy (push code + check site)
+# =====================================================================
+name: primary-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: [ main ]
+  paths:
+    include: [ app, pipelines/primary-deploy.yml ]
+
+pr: none
+
+variables:
+  serviceConnection: 'sc-azure-webapp-demo'    # name of your Azure Resource Manager service connection
+  appBaseName: 'drdemo-CHANGEME'               # CHANGE ME: globally unique, lowercase, short (same value in dr-deploy.yml)
+  region: 'centralindia'
+  sku: 'B1'
+  resourceGroup: 'rg-$(appBaseName)-primary'
+  webAppName: '$(appBaseName)-primary'
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+# ---------------------------------------------------------------------
+- stage: Build
+  displayName: 'Build: package app'
+  jobs:
+  - job: Package
+    steps:
+    - script: node --check app/server.js
+      displayName: 'Check code'
+    - task: ArchiveFiles@2
+      displayName: 'Zip app folder'
+      inputs:
+        rootFolderOrFile: '$(Build.SourcesDirectory)/app'
+        includeRootFolder: false
+        archiveType: zip
+        archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'
+    - publish: '$(Build.ArtifactStagingDirectory)/app.zip'
+      artifact: webapp
+      displayName: 'Publish artifact'
+
+# ---------------------------------------------------------------------
+- stage: Provision
+  displayName: 'Provision: primary web app'
+  dependsOn: Build
+  jobs:
+  - job: Provision
+    steps:
+    - checkout: none
+    - task: AzureCLI@2
+      displayName: 'Create resource group, plan and web app (if missing)'
+      env:
+        APP: $(webAppName)
+        RG: $(resourceGroup)
+        REGION: $(region)
+        SKU: $(sku)
+        ROLE: primary
+        BUILD: $(Build.BuildNumber)
+        COMMIT: $(Build.SourceVersion)
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -euo pipefail
+          PLAN="plan-$APP"
+
+          if [ "$(az group exists -n "$RG")" = "false" ]; then
+            echo "Creating resource group $RG"; az group create -n "$RG" -l "$REGION" -o none
+          else echo "Resource group $RG exists"; fi
+
+          if ! az appservice plan show -g "$RG" -n "$PLAN" -o none 2>/dev/null; then
+            echo "Creating plan $PLAN ($SKU, Linux)"
+            az appservice plan create -g "$RG" -n "$PLAN" -l "$REGION" --sku "$SKU" --is-linux -o none
+          else echo "Plan $PLAN exists"; fi
+
+          if ! az webapp show -g "$RG" -n "$APP" -o none 2>/dev/null; then
+            echo "Creating web app $APP"
+            az webapp create -g "$RG" -p "$PLAN" -n "$APP" --runtime "NODE:20-lts" -o none
+            echo "##vso[task.logissue type=warning]Created NEW web app $APP"
+          else echo "Web app $APP exists - reusing it"; fi
+
+          az webapp config set -g "$RG" -n "$APP" --startup-file "node server.js" --always-on true -o none
+          az webapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+            SITE_ROLE="$ROLE" SITE_REGION="$REGION" BUILD_NUMBER="$BUILD" SOURCE_COMMIT="$COMMIT"
+
+# ---------------------------------------------------------------------
+- stage: Deploy
+  displayName: 'Deploy: code to primary'
+  dependsOn: Provision
+  jobs:
+  - job: Deploy
+    steps:
+    - checkout: none
+    - download: current
+      artifact: webapp
+    - task: AzureWebApp@1
+      displayName: 'Deploy zip to $(webAppName)'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        appType: webAppLinux
+        appName: $(webAppName)
+        resourceGroupName: $(resourceGroup)
+        package: '$(Pipeline.Workspace)/webapp/app.zip'
+        runtimeStack: 'NODE|20-lts'
+        startUpCommand: 'node server.js'
+    - bash: |
+        URL="https://${APP}.azurewebsites.net"
+        echo "Waiting for $URL ..."
+        for i in $(seq 1 30); do
+          if curl -fs --max-time 10 "$URL/healthz" >/dev/null; then
+            curl -s "$URL/api/info"; echo
+            echo "##[section]PRIMARY site is live: $URL"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "##vso[task.logissue type=error]$URL not healthy after 5 minutes"; exit 1
+      env:
+        APP: $(webAppName)
+      displayName: 'Verify site is up'
