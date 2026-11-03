@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # ---------- EDIT THESE ----------
-ORG_URL="https://dev.azure.com/YOUR-ORG"     # your Azure DevOps organization
+ORG_URL="https://dev.azure.com/akparashar9597"     # your Azure DevOps organization
 PROJECT="WebApp-DR-Demo"
 REPO="webapp-dr-demo"
 PIPELINE_FOLDER='\WebApp-DR'                  # the folder both pipelines live in
