@@ -1,0 +1,49 @@
+# Pipeline 2 — DR
+# Manual only. Every run creates a BRAND-NEW web app in the DR region
+# (name includes the run ID) and deploys the same code from the repo.
+name: dr-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+parameters:
+- name: drRegion
+  displayName: 'DR region'
+  type: string
+  default: southindia
+  values: [ southindia, westindia, eastasia, southeastasia, westeurope, eastus ]
+- name: reason
+  displayName: 'Reason for DR activation'
+  type: string
+  default: 'DR drill'
+
+variables:
+- template: variables.yml
+- name: drWebAppName
+  value: $(appBaseName)-dr-$(Build.BuildId)
+
+stages:
+- stage: Announce
+  displayName: 'DR activation'
+  jobs:
+  - job: Info
+    pool:
+      vmImage: $(vmImage)
+    steps:
+    - checkout: none
+    - bash: |
+        echo "##[section]DR activation requested by $(Build.RequestedFor)"
+        echo "Reason      : ${{ parameters.reason }}"
+        echo "Region      : ${{ parameters.drRegion }}"
+        echo "New web app : $(drWebAppName)"
+        echo "Code commit : $(Build.SourceVersion) ($(Build.SourceBranchName))"
+      displayName: 'Show DR plan'
+
+- template: templates/build.yml
+
+- template: templates/provision-deploy.yml
+  parameters:
+    role: dr
+    webAppName: $(drWebAppName)
+    resourceGroup: $(drResourceGroup)
+    region: ${{ parameters.drRegion }}

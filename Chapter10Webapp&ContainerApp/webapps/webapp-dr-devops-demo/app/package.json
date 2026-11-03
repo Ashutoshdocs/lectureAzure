@@ -1,0 +1,8 @@
+{
+  "name": "webapp-dr-demo",
+  "version": "1.0.0",
+  "description": "Primary / DR demo app deployed by Azure Pipelines",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
