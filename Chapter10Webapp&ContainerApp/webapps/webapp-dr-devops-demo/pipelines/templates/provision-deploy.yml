@@ -1,0 +1,76 @@
+# Stage template: create the web app (idempotent), deploy the artifact, verify it is up.
+parameters:
+- name: role            # primary | dr
+  type: string
+- name: webAppName
+  type: string
+- name: resourceGroup
+  type: string
+- name: region
+  type: string
+
+stages:
+- stage: Provision_${{ parameters.role }}
+  displayName: 'Provision: ${{ parameters.role }} web app'
+  dependsOn: Build
+  jobs:
+  - job: Provision
+    pool:
+      vmImage: $(vmImage)
+    steps:
+    - checkout: self
+    - task: AzureCLI@2
+      displayName: 'Create RG, plan and web app if missing'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: scriptPath
+        scriptPath: 'scripts/provision-webapp.sh'
+        arguments: >-
+          --role ${{ parameters.role }}
+          --app ${{ parameters.webAppName }}
+          --rg ${{ parameters.resourceGroup }}
+          --region ${{ parameters.region }}
+          --sku $(sku)
+          --runtime $(runtime)
+          --build $(Build.BuildNumber)
+          --commit $(Build.SourceVersion)
+
+- stage: Deploy_${{ parameters.role }}
+  displayName: 'Deploy: code to ${{ parameters.role }}'
+  dependsOn: Provision_${{ parameters.role }}
+  jobs:
+  - job: Deploy
+    pool:
+      vmImage: $(vmImage)
+    steps:
+    - checkout: none
+    - download: current
+      artifact: webapp
+    - task: AzureWebApp@1
+      displayName: 'Zip deploy to ${{ parameters.webAppName }}'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        appType: webAppLinux
+        appName: ${{ parameters.webAppName }}
+        resourceGroupName: ${{ parameters.resourceGroup }}
+        package: '$(Pipeline.Workspace)/webapp/app.zip'
+        runtimeStack: 'NODE|20-lts'
+        startUpCommand: 'node server.js'
+    - bash: |
+        URL="https://${{ parameters.webAppName }}.azurewebsites.net"
+        echo "Waiting for $URL to answer..."
+        for i in $(seq 1 30); do
+          if curl -fs --max-time 10 "$URL/healthz" >/dev/null; then
+            echo "UP after $((i*10))s"
+            curl -s "$URL/api/info"; echo
+            echo "##vso[task.setvariable variable=siteUrl;isOutput=true]$URL"
+            echo "##[section]Site is live: $URL"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "##vso[task.logissue type=error]$URL did not become healthy within 5 minutes"
+        exit 1
+      name: verify
+      displayName: 'Verify site is up'
