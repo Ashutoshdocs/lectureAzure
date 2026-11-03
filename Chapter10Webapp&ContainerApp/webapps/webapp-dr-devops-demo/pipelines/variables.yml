@@ -1,7 +1,7 @@
 # Shared settings for both pipelines. CHANGE appBaseName to something globally unique.
 variables:
   serviceConnection: 'sc-azure-webapp-demo'   # Azure Resource Manager service connection name
-  appBaseName: 'drdemo-CHANGEME'              # lowercase letters/digits/hyphens, keep it short
+  appBaseName: 'drdemoblaze'              # lowercase letters/digits/hyphens, keep it short
   primaryRegion: 'centralindia'
   primaryResourceGroup: 'rg-$(appBaseName)-primary'
   drResourceGroup: 'rg-$(appBaseName)-dr'
