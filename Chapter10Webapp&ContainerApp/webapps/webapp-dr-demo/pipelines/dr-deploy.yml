@@ -1,0 +1,136 @@
+# =====================================================================
+# Pipeline 2 — DR (disaster recovery)
+# Manual only. Every run creates a BRAND-NEW web app in the chosen DR region
+# (name ends with the run ID) and deploys the same code from this repo.
+# Stages: Build (zip code) -> Provision (create NEW web app) -> Deploy (push code + check site)
+# =====================================================================
+name: dr-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+parameters:
+- name: drRegion
+  displayName: 'DR region'
+  type: string
+  default: southindia
+  values: [ southindia, westindia, eastasia, southeastasia, westeurope, eastus ]
+- name: reason
+  displayName: 'Reason for DR activation'
+  type: string
+  default: 'DR drill'
+
+variables:
+  serviceConnection: 'sc-azure-webapp-demo'    # name of your Azure Resource Manager service connection
+  appBaseName: 'drdemo-CHANGEME'               # CHANGE ME: same value as in primary-deploy.yml
+  region: ${{ parameters.drRegion }}
+  sku: 'B1'
+  resourceGroup: 'rg-$(appBaseName)-dr'
+  webAppName: '$(appBaseName)-dr-$(Build.BuildId)'   # new name on every run
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+# ---------------------------------------------------------------------
+- stage: Build
+  displayName: 'Build: package app'
+  jobs:
+  - job: Package
+    steps:
+    - script: |
+        echo "##[section]DR activation requested by $(Build.RequestedFor)"
+        echo "Reason      : ${{ parameters.reason }}"
+        echo "DR region   : ${{ parameters.drRegion }}"
+        echo "New web app : $(webAppName)"
+        echo "Code commit : $(Build.SourceVersion)"
+      displayName: 'DR activation details'
+    - script: node --check app/server.js
+      displayName: 'Check code'
+    - task: ArchiveFiles@2
+      displayName: 'Zip app folder'
+      inputs:
+        rootFolderOrFile: '$(Build.SourcesDirectory)/app'
+        includeRootFolder: false
+        archiveType: zip
+        archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'
+    - publish: '$(Build.ArtifactStagingDirectory)/app.zip'
+      artifact: webapp
+      displayName: 'Publish artifact'
+
+# ---------------------------------------------------------------------
+- stage: Provision
+  displayName: 'Provision: NEW DR web app'
+  dependsOn: Build
+  jobs:
+  - job: Provision
+    steps:
+    - checkout: none
+    - task: AzureCLI@2
+      displayName: 'Create resource group, plan and new web app'
+      env:
+        APP: $(webAppName)
+        RG: $(resourceGroup)
+        REGION: $(region)
+        SKU: $(sku)
+        ROLE: dr
+        BUILD: $(Build.BuildNumber)
+        COMMIT: $(Build.SourceVersion)
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -euo pipefail
+          PLAN="plan-$APP"
+
+          if [ "$(az group exists -n "$RG")" = "false" ]; then
+            echo "Creating resource group $RG"; az group create -n "$RG" -l "$REGION" -o none
+          else echo "Resource group $RG exists"; fi
+
+          echo "Creating plan $PLAN ($SKU, Linux) in $REGION"
+          az appservice plan create -g "$RG" -n "$PLAN" -l "$REGION" --sku "$SKU" --is-linux -o none
+
+          echo "Creating web app $APP"
+          az webapp create -g "$RG" -p "$PLAN" -n "$APP" --runtime "NODE:20-lts" -o none
+          echo "##vso[task.logissue type=warning]Created NEW DR web app $APP in $REGION"
+
+          az webapp config set -g "$RG" -n "$APP" --startup-file "node server.js" --always-on true -o none
+          az webapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+            SITE_ROLE="$ROLE" SITE_REGION="$REGION" BUILD_NUMBER="$BUILD" SOURCE_COMMIT="$COMMIT"
+
+# ---------------------------------------------------------------------
+- stage: Deploy
+  displayName: 'Deploy: code to DR'
+  dependsOn: Provision
+  jobs:
+  - job: Deploy
+    steps:
+    - checkout: none
+    - download: current
+      artifact: webapp
+    - task: AzureWebApp@1
+      displayName: 'Deploy zip to $(webAppName)'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        appType: webAppLinux
+        appName: $(webAppName)
+        resourceGroupName: $(resourceGroup)
+        package: '$(Pipeline.Workspace)/webapp/app.zip'
+        runtimeStack: 'NODE|20-lts'
+        startUpCommand: 'node server.js'
+    - bash: |
+        URL="https://${APP}.azurewebsites.net"
+        echo "Waiting for $URL ..."
+        for i in $(seq 1 30); do
+          if curl -fs --max-time 10 "$URL/healthz" >/dev/null; then
+            curl -s "$URL/api/info"; echo
+            echo "##[section]DR site is live: $URL"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "##vso[task.logissue type=error]$URL not healthy after 5 minutes"; exit 1
+      env:
+        APP: $(webAppName)
+      displayName: 'Verify site is up'
