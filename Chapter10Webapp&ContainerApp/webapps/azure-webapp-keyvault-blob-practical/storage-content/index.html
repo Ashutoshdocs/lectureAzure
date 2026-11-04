@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Key Vault + Managed Identity Demo</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:850px;margin:60px auto;padding:0 22px;color:#1f2937;background:#f8fafc}
+main{background:white;padding:32px;border-radius:14px;box-shadow:0 5px 24px #00000012}
+h1{color:#7c3aed}.tag{display:inline-block;background:#ede9fe;color:#5b21b6;padding:7px 12px;border-radius:20px;font-weight:bold}
+</style></head>
+<body><main>
+<span class="tag">Key Vault + Managed Identity</span>
+<h1>Hello from a private Azure Blob!</h1>
+<p>This HTML file is stored in a private Azure Blob Storage container.</p>
+<p>The Python Web App uses its system-assigned managed identity to retrieve the
+Storage Account connection string from Azure Key Vault. It then uses that
+connection string to download this HTML file.</p>
+<h2>What this practical demonstrates</h2>
+<ol>
+<li>The Storage connection string is stored as a Key Vault secret.</li>
+<li>The Web App authenticates to Key Vault using Managed Identity.</li>
+<li>Key Vault RBAC grants the identity permission to read secrets.</li>
+<li>The app uses the retrieved connection string to read the private blob.</li>
+</ol>
+<p><strong>Security point:</strong> The connection string is not hardcoded in source
+code or saved in the Web App application settings.</p>
+</main></body></html>
