@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Managed Identity Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 850px; margin: 60px auto;
+           padding: 0 22px; color: #1f2937; background: #f8fafc; }
+    main { background: white; padding: 32px; border-radius: 14px;
+           box-shadow: 0 5px 24px #00000012; }
+    h1 { color: #075985; }
+    .tag { display: inline-block; background: #dcfce7; color: #166534;
+           padding: 7px 12px; border-radius: 20px; font-weight: bold; }
+    code { background: #f1f5f9; padding: 3px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="tag">Azure Managed Identity</span>
+    <h1>Hello from a file stored in Azure Blob Storage!</h1>
+    <p>This HTML file lives in a private Blob Storage container.</p>
+    <p>The Azure App Service retrieves this page at request time by using
+       its system-assigned managed identity.</p>
+    <h2>What this practical demonstrates</h2>
+    <ol>
+      <li>The HTML file is uploaded to a private blob container.</li>
+      <li>The Web App has a system-assigned managed identity.</li>
+      <li>The identity is granted the <strong>Storage Blob Data Reader</strong> role.</li>
+      <li>The Python application downloads the blob using Microsoft Entra ID.</li>
+    </ol>
+    <p><strong>Security point:</strong> no storage account key, SAS token,
+       or connection string is embedded in the application.</p>
+  </main>
+</body>
+</html>
