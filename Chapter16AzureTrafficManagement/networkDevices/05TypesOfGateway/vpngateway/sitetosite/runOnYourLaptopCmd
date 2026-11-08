@@ -1,1 +1,0 @@
-ssh -L 8080:<privateipofwebvm>:80 azureuser@<Company-VM-IP-or-hostname>
