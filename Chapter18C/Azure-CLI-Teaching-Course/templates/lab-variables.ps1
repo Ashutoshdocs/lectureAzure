@@ -1,0 +1,12 @@
+# Dot-source this file: . .\templates\lab-variables.ps1
+$LOCATION = "centralindia"
+$RG = "rg-azcli-training"
+$VNET = "vnet-azcli"
+$SUBNET = "snet-app"
+$NSG = "nsg-azcli"
+$PIP = "pip-azcli-vm"
+$NIC = "nic-azcli-vm"
+$VM = "vm-azcli-linux"
+$STORAGE = "stazcli$((New-Guid).ToString('N').Substring(0,8))"
+$PLAN = "plan-azcli-demo"
+$WEBAPP = "webazcli$((New-Guid).ToString('N').Substring(0,8))"

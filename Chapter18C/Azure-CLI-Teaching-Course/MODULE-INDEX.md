@@ -1,0 +1,17 @@
+# Module Index
+
+01. [01 Install Azure Cli](modules/01-install-azure-cli.md)
+02. [02 Authentication](modules/02-authentication.md)
+03. [03 Cli Fundamentals](modules/03-cli-fundamentals.md)
+04. [04 Resource Groups](modules/04-resource-groups.md)
+05. [05 Storage Account](modules/05-storage-account.md)
+06. [06 Virtual Network](modules/06-virtual-network.md)
+07. [07 Subnets](modules/07-subnets.md)
+08. [08 Public Ip](modules/08-public-ip.md)
+09. [09 Network Interface](modules/09-network-interface.md)
+10. [10 Network Security Group](modules/10-network-security-group.md)
+11. [11 Virtual Machine](modules/11-virtual-machine.md)
+12. [12 Managed Disks](modules/12-managed-disks.md)
+13. [13 Web App](modules/13-web-app.md)
+14. [14 End To End Project](modules/14-end-to-end-project.md)
+15. [15 Cleanup](modules/15-cleanup.md)

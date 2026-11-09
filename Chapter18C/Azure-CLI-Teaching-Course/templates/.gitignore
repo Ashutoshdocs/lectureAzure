@@ -1,0 +1,9 @@
+# Never commit credentials, local environment files, or private keys
+.env
+*.secret
+*.pem
+*.key
+*_rsa
+*_ed25519
+*.pfx
+*.p12
