@@ -1,0 +1,40 @@
+# =============================================================================
+# DEV - WHAT-IF pipeline
+# Previews what mainresource.bicep would change in the DEV environment.
+# Makes NO changes. Runs automatically on pushes to main that touch the
+# Bicep code or the dev parameter file, and can be run manually.
+# =============================================================================
+name: dev-whatif-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - main/*
+      - modules/*
+      - environments/dev/*
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  environmentName: dev
+  serviceConnection: sc-azure-dev   # <-- name of the ARM service connection for DEV
+  parameterFile: environments/dev/dev.parameters.json
+
+steps:
+  - checkout: self
+
+  - task: AzureCLI@2
+    displayName: 'What-if: dev'
+    inputs:
+      azureSubscription: ${{ variables.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        chmod +x scripts/*.sh
+        ./scripts/bicep-deploy.sh whatif "$(parameterFile)"

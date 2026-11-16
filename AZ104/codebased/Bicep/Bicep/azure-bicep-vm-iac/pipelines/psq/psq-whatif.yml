@@ -1,0 +1,40 @@
+# =============================================================================
+# PSQ - WHAT-IF pipeline
+# Previews what mainresource.bicep would change in the PSQ environment.
+# Makes NO changes. Runs automatically on pushes to main that touch the
+# Bicep code or the psq parameter file, and can be run manually.
+# =============================================================================
+name: psq-whatif-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - main/*
+      - modules/*
+      - environments/psq/*
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  environmentName: psq
+  serviceConnection: sc-azure-psq   # <-- name of the ARM service connection for PSQ
+  parameterFile: environments/psq/psq.parameters.json
+
+steps:
+  - checkout: self
+
+  - task: AzureCLI@2
+    displayName: 'What-if: psq'
+    inputs:
+      azureSubscription: ${{ variables.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        chmod +x scripts/*.sh
+        ./scripts/bicep-deploy.sh whatif "$(parameterFile)"

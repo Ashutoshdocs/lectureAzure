@@ -1,0 +1,100 @@
+# =============================================================================
+# DEV - DEPLOY pipeline
+# Stage 1: (optional) generate VM credentials into Key Vault
+#          + validate + what-if
+# Stage 2: deploy mainresource.bicep to DEV (gated by the Azure DevOps
+#          environment "azure-dev" - add approvals/checks on it)
+# Manual run only.
+# =============================================================================
+name: dev-deploy-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+parameters:
+  - name: generateCredentials
+    displayName: 'Generate VM admin username/password in Key Vault first (skips password if it already exists)'
+    type: boolean
+    default: false
+  - name: adminUsername
+    displayName: 'VM admin username (used only when generating credentials)'
+    type: string
+    default: azureadmin
+  - name: rotatePassword
+    displayName: 'Force a NEW password even if one exists (only for a VM that is not deployed yet)'
+    type: boolean
+    default: false
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  environmentName: dev
+  serviceConnection: sc-azure-dev   # <-- name of the ARM service connection for DEV
+  adoEnvironment: azure-dev            # <-- Azure DevOps environment (approvals)
+  parameterFile: environments/dev/dev.parameters.json
+
+stages:
+  - stage: Prepare
+    displayName: 'Credentials, validate & what-if (dev)'
+    jobs:
+      - job: Prepare
+        steps:
+          - checkout: self
+
+          - ${{ if eq(parameters.generateCredentials, true) }}:
+            - task: AzureCLI@2
+              displayName: 'Generate password -> Key Vault'
+              inputs:
+                azureSubscription: ${{ variables.serviceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  chmod +x scripts/*.sh
+                  ./scripts/passwordgenerator.sh \
+                    --param-file "$(parameterFile)" \
+                    --username "${{ parameters.adminUsername }}" \
+                    ${{ iif(eq(parameters.rotatePassword, true), '--force', '') }}
+
+          - task: AzureCLI@2
+            displayName: 'Validate: dev'
+            inputs:
+              azureSubscription: ${{ variables.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                chmod +x scripts/*.sh
+                ./scripts/bicep-deploy.sh validate "$(parameterFile)"
+
+          - task: AzureCLI@2
+            displayName: 'What-if: dev'
+            inputs:
+              azureSubscription: ${{ variables.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                ./scripts/bicep-deploy.sh whatif "$(parameterFile)"
+
+  - stage: Deploy
+    displayName: 'Deploy (dev)'
+    dependsOn: Prepare
+    condition: succeeded()
+    jobs:
+      - deployment: Deploy
+        displayName: 'Deploy mainresource.bicep'
+        environment: ${{ variables.adoEnvironment }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self   # deployment jobs do not check out code by default
+
+                - task: AzureCLI@2
+                  displayName: 'Deploy: dev'
+                  inputs:
+                    azureSubscription: ${{ variables.serviceConnection }}
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      chmod +x scripts/*.sh
+                      ./scripts/bicep-deploy.sh create "$(parameterFile)"
