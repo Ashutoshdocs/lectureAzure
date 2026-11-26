@@ -1,0 +1,6 @@
+{
+  "fileUris": [
+    "https://stcsedemo12345.blob.core.windows.net/scripts/setup-nginx.sh?sp=racwd&st=2026-11-24T10:56:31Z&se=2026-11-24T19:11:31Z&spr=https&sv=2026-02-06&sr=b&sig=qaJtayhVl%2F2XXq7V2E0cp8%2BjBaXOtz%2FfHpGMK8l6tn8%3D"
+  ],
+  "commandToExecute": "bash setup-nginx.sh"
+}
