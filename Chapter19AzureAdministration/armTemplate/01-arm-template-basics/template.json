@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "minLength": 4,
+      "maxLength": 63,
+      "metadata": {
+        "description": "Globally unique Log Analytics workspace name."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "centralindia"
+    }
+  },
+  "variables": {
+    "retentionDays": 30
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[parameters('workspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": "[variables('retentionDays')]"
+      }
+    }
+  ],
+  "outputs": {
+    "workspaceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+    },
+    "workspaceName": {
+      "type": "string",
+      "value": "[parameters('workspaceName')]"
+    }
+  }
+}
