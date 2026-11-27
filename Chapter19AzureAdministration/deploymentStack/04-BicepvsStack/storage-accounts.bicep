@@ -43,36 +43,4 @@ resource container1 'Microsoft.Storage/storageAccounts/blobServices/containers@2
   }
 }
 
-resource storageAccount2 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName2
-  location: location
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'StorageV2'
-  properties: {
-    accessTier: 'Hot'
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-    allowBlobPublicAccess: false
-  }
-}
 
-resource blobService2 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
-  parent: storageAccount2
-  name: 'default'
-  properties: {
-    deleteRetentionPolicy: {
-      enabled: true
-      days: 7
-    }
-  }
-}
-
-resource container2 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
-  parent: blobService2
-  name: 'container-two'
-  properties: {
-    publicAccess: 'None'
-  }
-}
