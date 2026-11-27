@@ -196,26 +196,6 @@ az stack group what-if \
 ```
 
 
-```
-az stack group what-if \
-  --name "storage-lifecycle-stack" \
-  --resource-group "$RG_STACK" \
-  --template-file storage-stack.bicep \
-  --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
-  --action-on-unmanage detachAll \
-  --deny-settings-mode none
-```
-
-```
-az stack group what-if \
-  --name "storage-lifecycle-stack" \
-  --resource-group "$RG_STACK" \
-  --template-file storage-stack.bicep \
-  --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
-  --action-on-unmanage deleteResources \
-  --deny-settings-mode none
-```
-
 6. Review the proposed changes carefully. Confirm that the second Storage Account and its child resources are identified for deletion/unmanagement according to the stack action.
 7. Apply the update:
 
