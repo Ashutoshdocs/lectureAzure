@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "centralus" },
+    "vmName": { "value": "vm-stack-demo" },
+    "adminUsername": { "value": "azureadmin" },
+    "adminSourceAddressPrefix": { "value": "203.0.113.10/32" },
+    "storageAccountName": { "value": "ststackdemo123456" }
+  }
+}
