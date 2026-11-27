@@ -226,6 +226,7 @@ az stack-whatif group create \
 
 ### Step 5.4 — Display the preview
 
+<<<<<<< HEAD
 ```bash
 az stack-whatif group show \
   --name "storage-lifecycle-stack-preview" \
@@ -249,6 +250,10 @@ az stack-whatif group delete \
 ### Step 5.5 — Apply the stack update
 
 Only after reviewing the preview, run the actual stack update:
+=======
+6. Review the proposed changes carefully. Confirm that the second Storage Account and its child resources are identified for deletion/unmanagement according to the stack action.
+7. Apply the update:
+>>>>>>> 70cc1243c466aa69327aa4779d5a58654c97260e
 
 ```bash
 az stack group create \
