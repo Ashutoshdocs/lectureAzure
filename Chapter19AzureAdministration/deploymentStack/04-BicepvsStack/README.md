@@ -15,7 +15,7 @@ You will create **two Storage Accounts**, each with **one private Blob container
 
 - `storage-accounts.bicep` — ordinary Bicep deployment with two Storage Accounts and one container in each.
 - `storage-stack.bicep` — same initial infrastructure, intended to be deployed as a Deployment Stack.
-- `README.md` — portal/CLI teaching steps and comparison.
+- `README.md` — step-by-step CLI practical and comparison.
 
 ## Architecture
 
@@ -59,7 +59,7 @@ export STACK_SA1="ststackdemoabc01"
 export STACK_SA2="ststackdemoabc02"
 ```
 
-If you use PowerShell, set the same variables with `$LOCATION = "centralindia"` etc. The commands below use Bash syntax for compactness.
+If you use PowerShell, set the same variables with `$LOCATION = "centralindia"` etc. The commands below use Bash syntax for compactness. Git Bash on Windows supports this syntax.
 
 ## Part 1 — Create the resource groups
 
@@ -140,7 +140,7 @@ az storage account list --resource-group "$RG_BICEP" \
   --query "[].name" -o table
 ```
 
-**Expected teaching result:** both Storage Accounts still exist. The normal resource-group Bicep deployment uses incremental mode by default. Resources omitted from a later incremental deployment are not automatically deleted. The deployment updates/manages resources represented by the new template; it does not treat omission as a delete instruction.
+**Expected teaching result:** both Storage Accounts still exist. The normal resource-group Bicep deployment uses incremental mode by default. Resources omitted from a later incremental deployment are not automatically deleted. The deployment updates resources represented by the new template; it does not treat omission as a delete instruction.
 
 Explain to learners: *“Removing a resource declaration from a normal Bicep file does not mean Azure deletes that existing resource.”*
 
@@ -172,9 +172,13 @@ az stack group show \
   --query "{Name:name,ProvisioningState:provisioningState,ActionOnUnmanage:actionOnUnmanage}" -o yaml
 ```
 
-The `--action-on-unmanage delete` setting is important. It tells the stack what to do with resources that were previously managed by the stack but are no longer present in its updated template. Do not rely on an implicit default for this teaching exercise.
+`--action-on-unmanage deleteAll` tells the stack to delete resources that it previously managed but that are no longer present in the updated template. The accepted action values are `deleteAll`, `deleteResources`, and `detachAll`.
 
-## Part 5 — Deployment Stack: remove Storage Account 2 and update the stack
+## Part 5 — Deployment Stack What-If: preview removal of Storage Account 2
+
+**Important correction:** the command is **`az stack-whatif group create`**. It is not `az stack group what-if`.
+
+### Step 5.1 — Edit the stack template
 
 1. Make a backup copy of `storage-stack.bicep`.
 2. Edit `storage-stack.bicep`.
@@ -183,41 +187,68 @@ The `--action-on-unmanage delete` setting is important. It tells the stack what 
    - `blobService2`
    - `container2`
 4. Keep Storage Account 1 and its child resources.
-5. Run what-if for the stack update:
+5. Save the file.
+
+### Step 5.2 — Get the ID of the existing stack
+
+The Stack What-If command needs the fully qualified ID of the existing Deployment Stack:
 
 ```bash
-az stack group what-if \
+STACK_ID=$(az stack group show \
   --name "storage-lifecycle-stack" \
   --resource-group "$RG_STACK" \
+  --query id -o tsv)
+
+echo "$STACK_ID"
+```
+
+Confirm that the command prints a resource ID ending in:
+
+```text
+/providers/Microsoft.Resources/deploymentStacks/storage-lifecycle-stack
+```
+
+### Step 5.3 — Create a Stack What-If preview result
+
+Use a separate name for the preview result. The preview name is not the name of the actual Deployment Stack.
+
+```bash
+az stack-whatif group create \
+  --name "storage-lifecycle-stack-preview" \
+  --resource-group "$RG_STACK" \
+  --stack-id "$STACK_ID" \
   --template-file storage-stack.bicep \
   --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
   --action-on-unmanage deleteAll \
-  --deny-settings-mode none
+  --deny-settings-mode none \
+  --retention-interval P1D
 ```
 
+### Step 5.4 — Display the preview
 
-```
-az stack group what-if \
-  --name "storage-lifecycle-stack" \
+```bash
+az stack-whatif group show \
+  --name "storage-lifecycle-stack-preview" \
   --resource-group "$RG_STACK" \
-  --template-file storage-stack.bicep \
-  --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
-  --action-on-unmanage detachAll \
-  --deny-settings-mode none
+  --with-property-changes true
 ```
 
-```
-az stack group what-if \
-  --name "storage-lifecycle-stack" \
+Review the result. The preview should identify Storage Account 2 and its child resources as resources that will be removed according to the selected `deleteAll` action.
+
+If you want to create another preview with the same name, delete the previous preview result first:
+
+```bash
+az stack-whatif group delete \
+  --name "storage-lifecycle-stack-preview" \
   --resource-group "$RG_STACK" \
-  --template-file storage-stack.bicep \
-  --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
-  --action-on-unmanage deleteResources \
-  --deny-settings-mode none
+  --yes
 ```
 
-6. Review the proposed changes carefully. Confirm that the second Storage Account and its child resources are identified for deletion/unmanagement according to the stack action.
-7. Apply the update:
+**A What-If preview does not change the actual stack or delete resources.** It creates a preview result resource that you can inspect.
+
+### Step 5.5 — Apply the stack update
+
+Only after reviewing the preview, run the actual stack update:
 
 ```bash
 az stack group create \
@@ -236,36 +267,42 @@ az storage account list --resource-group "$RG_STACK" \
   --query "[].name" -o table
 ```
 
-**Expected teaching result:** only Storage Account 1 remains in the stack resource group's managed deployment. Storage Account 2 is deleted because the stack was updated with `--action-on-unmanage delete`.
+**Expected teaching result:** only Storage Account 1 remains. Storage Account 2 is deleted because the updated stack no longer manages it and the stack uses `--action-on-unmanage deleteAll`.
 
 ## Part 6 — Compare the results with students
 
 | Experiment | What changed in the file? | Deployment operation | Expected result for Storage Account 2 |
 |---|---|---|---|
 | Normal Bicep | Removed account 2 and its child declarations | `az deployment group create` (incremental) | Remains in Azure |
-| Deployment Stack | Removed account 2 and its child declarations | `az stack group create` with `--action-on-unmanage delete` | Deleted by stack update |
+| Deployment Stack | Removed account 2 and its child declarations | `az stack group create` with `--action-on-unmanage deleteAll` | Deleted by stack update |
 
 ### Core concept
 
 - **Normal Bicep deployment:** Bicep is the language used to describe resources. A standard resource-group deployment is incremental by default. Omission from the next template does not delete an existing resource.
-- **Deployment Stack:** a lifecycle-management feature that tracks the resources managed by the stack. Its action-on-unmanage setting determines what happens when a resource is removed from the stack's template. With `delete`, removed managed resources are deleted during the stack update.
+- **Deployment Stack:** a lifecycle-management feature that tracks the resources managed by the stack. Its action-on-unmanage setting determines what happens when a resource is removed from the stack's template. With `deleteAll`, resources that are no longer managed are deleted during the stack update.
+- **Deployment Stack What-If:** a separate preview operation. It creates a What-If result that can be inspected before the real stack update.
 
 A Deployment Stack is not simply a different Bicep syntax. The same Bicep language can be used with a normal deployment or as the template for a stack; the deployment mechanism and lifecycle behavior are different.
 
 ## Important safety notes
 
 - This lab intentionally demonstrates deletion. Use only the dedicated demo resource groups.
-- Read the stack what-if output before applying the update.
-- `--action-on-unmanage delete` can delete resources that were previously managed by the stack and are now omitted from its template.
+- Read the Stack What-If output before applying the update.
+- `--action-on-unmanage deleteAll` can delete resources that were previously managed by the stack and are now omitted from its template.
 - The child Blob service and container declarations are removed along with Storage Account 2. Deleting a Storage Account deletes its contained data.
 - Do not run the stack update against a production resource group.
 - This exercise uses `--deny-settings-mode none` so deny settings do not block the lab's intended operations. Do not copy that choice into a production design without reviewing your governance requirements.
 
 ## Cleanup
 
-After teaching, remove the stack first, then the two resource groups:
+After teaching, remove the preview result, then remove the stack and the two resource groups:
 
 ```bash
+az stack-whatif group delete \
+  --name "storage-lifecycle-stack-preview" \
+  --resource-group "$RG_STACK" \
+  --yes
+
 az stack group delete \
   --name "storage-lifecycle-stack" \
   --resource-group "$RG_STACK" \
@@ -276,17 +313,23 @@ az group delete --name "$RG_BICEP" --yes --no-wait
 az group delete --name "$RG_STACK" --yes --no-wait
 ```
 
-The stack delete command uses `--action-on-unmanage delete` to delete resources still managed by the stack. Confirm the target stack and resource group before running it.
+The stack delete command uses `--action-on-unmanage deleteAll` to delete resources still managed by the stack. Confirm the target stack and resource group before running it.
 
 ## Troubleshooting
 
+- **`what-if` is not recognized under `az stack group`:** use `az stack-whatif group create`. The command groups are separate.
+- **`az stack-whatif` is not recognized at all:** update Azure CLI with `az upgrade`, open a new terminal, then check `az stack-whatif group --help`.
 - **Storage account name already taken:** choose a different globally unique name.
 - **Invalid storage account name:** use only lowercase letters and numbers, 3–24 characters.
 - **Authorization failure:** verify that your identity has resource deployment permissions; for container listing, also verify Blob data-plane permissions.
-- **Stack command unavailable:** update Azure CLI and check `az stack group --help`.
-- **What-if proposes unexpected deletions:** stop and inspect the template, stack name, resource group, and action-on-unmanage setting before applying.
+- **What-If proposes unexpected deletions:** stop and inspect the template, stack ID, stack name, resource group, and action-on-unmanage setting before applying.
 
 ## Expected final outcome
 
 - Normal Bicep experiment: both accounts remain after removing account 2 from the template and redeploying incrementally.
-- Deployment Stack experiment: account 2 is deleted after removing it from the stack template and updating with `--action-on-unmanage delete`.
+- Deployment Stack experiment: Stack What-If previews removal; the subsequent stack update deletes account 2 because the stack uses `--action-on-unmanage deleteAll`.
+
+## Microsoft documentation
+
+- [Azure CLI — az stack-whatif group](https://learn.microsoft.com/cli/azure/stack-whatif/group)
+- [Azure CLI — az stack group](https://learn.microsoft.com/cli/azure/stack/group)
