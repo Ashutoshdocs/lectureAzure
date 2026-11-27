@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "centralus" },
+    "adminUsername": { "value": "azureadmin" },
+    "adminSourceAddressPrefix": { "value": "203.0.113.10/32" },
+    "vmSize": { "value": "Standard_B2s" }
+  }
+}

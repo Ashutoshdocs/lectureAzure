@@ -1,0 +1,11 @@
+#cloud-config
+package_update: true
+packages:
+  - curl
+  - ca-certificates
+  - unzip
+runcmd:
+  - |
+    if ! command -v az >/dev/null 2>&1; then
+      curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+    fi
