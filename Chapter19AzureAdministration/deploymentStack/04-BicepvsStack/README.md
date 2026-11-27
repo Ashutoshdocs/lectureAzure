@@ -191,7 +191,28 @@ az stack group what-if \
   --resource-group "$RG_STACK" \
   --template-file storage-stack.bicep \
   --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
-  --action-on-unmanage delete \
+  --action-on-unmanage deleteAll \
+  --deny-settings-mode none
+```
+
+
+```
+az stack group what-if \
+  --name "storage-lifecycle-stack" \
+  --resource-group "$RG_STACK" \
+  --template-file storage-stack.bicep \
+  --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
+  --action-on-unmanage detachAll \
+  --deny-settings-mode none
+```
+
+```
+az stack group what-if \
+  --name "storage-lifecycle-stack" \
+  --resource-group "$RG_STACK" \
+  --template-file storage-stack.bicep \
+  --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
+  --action-on-unmanage deleteResources \
   --deny-settings-mode none
 ```
 
