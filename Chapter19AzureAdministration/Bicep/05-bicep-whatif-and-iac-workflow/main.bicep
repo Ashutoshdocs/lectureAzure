@@ -1,3 +1,4 @@
+
 targetScope = 'resourceGroup'
 
 @description('Globally unique Storage Account name: 3-24 lowercase letters/numbers.')
@@ -26,6 +27,8 @@ resource appContainer 'Microsoft.Storage/storageAccounts/blobServices/containers
   name: '${storage.name}/default/app-data'
   properties: {
     publicAccess: 'None'
+    defaultEncryptionScope: '$account-encryption-key'
+    denyEncryptionScopeOverride: false
   }
 }
 
@@ -33,6 +36,8 @@ resource backupContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   name: '${storage.name}/default/backup-data'
   properties: {
     publicAccess: 'None'
+    defaultEncryptionScope: '$account-encryption-key'
+    denyEncryptionScopeOverride: false
   }
 }
 
