@@ -156,7 +156,7 @@ az stack group create \
   --resource-group "$RG_STACK" \
   --template-file storage-stack.bicep \
   --parameters storageAccountName1="$STACK_SA1" storageAccountName2="$STACK_SA2" location="$LOCATION" \
-  --action-on-unmanage delete \
+  --action-on-unmanage deleteAll \
   --deny-settings-mode none
 ```
 
